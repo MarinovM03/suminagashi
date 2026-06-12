@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.local
+
+# editor / tooling
+.claude/
+CLAUDE.md
+.vscode/
+.DS_Store
+
+# reference material, not part of the app
+reference/
