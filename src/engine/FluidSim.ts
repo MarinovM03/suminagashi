@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { simConfig, INKS, INK_KEYS, PAPER, type InkMode, type InkName, type Tool } from './config';
+import { simConfig, PALETTES, PAPER, type InkMode, type Tool } from './config';
 import {
   VERT, ADVECT, SPLAT, RADIAL_PUSH, CURL, VORTICITY,
   DIVERGENCE, PRESSURE, GRADIENT_SUBTRACT, CLEAR, DISPLAY,
@@ -52,10 +52,10 @@ export class FluidSim {
   private clearMat: THREE.ShaderMaterial;
   private displayMat: THREE.ShaderMaterial;
 
-  private inks: Record<InkName, THREE.Color>;
+  private inks: THREE.Color[];
   private reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  private pointer = { down: false, moved: false, x: 0, y: 0, px: 0, py: 0, color: new THREE.Color(INKS.sumi) };
+  private pointer = { down: false, moved: false, x: 0, y: 0, px: 0, py: 0, color: new THREE.Color('#1a1a1f') };
   private lastInteraction = 0;
   private washing = 0;
   private ringTimer = 0;
@@ -97,7 +97,7 @@ export class FluidSim {
     const paper = new THREE.Color(PAPER);
     this.displayMat = this.prog(DISPLAY, { uDye: { value: null }, uTexel: v2(), uPaper: { value: new THREE.Vector3(paper.r, paper.g, paper.b) }, uTime: { value: 0 } });
 
-    this.inks = Object.fromEntries(INK_KEYS.map(k => [k, new THREE.Color(INKS[k])])) as Record<InkName, THREE.Color>;
+    this.inks = PALETTES[0].colors.map(c => new THREE.Color(c.hex));
 
     const canvas = this.renderer.domElement;
     canvas.addEventListener('pointerdown', this.onPointerDown);
@@ -117,6 +117,11 @@ export class FluidSim {
   setInkMode(mode: InkMode) { this.inkMode = mode; }
   setAutoFlow(on: boolean) { this.autoFlow = on; }
   wash() { this.washing = 1.6; }
+
+  setPalette(hexes: string[]) {
+    this.inks = hexes.map(h => new THREE.Color(h));
+    this.inkCycleIdx = 0;
+  }
 
   // toDataURL needs a freshly drawn buffer: without preserveDrawingBuffer
   // the canvas is only readable in the same task as the render
@@ -218,11 +223,11 @@ export class FluidSim {
 
   private currentInkColor(advance: boolean) {
     if (this.inkMode === 'cycle') {
-      const c = this.inks[INK_KEYS[this.inkCycleIdx % INK_KEYS.length]];
+      const c = this.inks[this.inkCycleIdx % this.inks.length];
       if (advance) this.inkCycleIdx++;
       return c;
     }
-    return this.inks[this.inkMode] ?? this.inks.sumi;
+    return this.inks[this.inkMode] ?? this.inks[0];
   }
 
   /* ── splats ── */
@@ -361,7 +366,8 @@ export class FluidSim {
       return;
     }
     // dragging pulls ink along (brush only); hovering just stirs the water
-    this.splatVelocity(this.pointer.x, this.pointer.y, fx, fy, this.pointer.down ? 2.0 : 1.4);
+    const hoverBoost = this.pointer.down ? 1 : 1.7;
+    this.splatVelocity(this.pointer.x, this.pointer.y, fx * hoverBoost, fy * hoverBoost, this.pointer.down ? 2.0 : 2.6);
     if (this.pointer.down && this.tool === 'brush') {
       const speed = Math.min(Math.hypot(dx, dy) * 30, 1);
       this.splatDye(this.pointer.x, this.pointer.y, this.inkAbsorption(this.pointer.color, 0.06 + speed * 0.12), 0.9);
@@ -378,12 +384,12 @@ export class FluidSim {
     if (idle && this.nextDrop <= 0) {
       const x = 0.14 + Math.random() * 0.72;
       const y = 0.16 + Math.random() * 0.68;
-      const c = this.inks[INK_KEYS[Math.floor(Math.random() * INK_KEYS.length)]];
+      const c = this.inks[Math.floor(Math.random() * this.inks.length)];
       this.dropInk(x, y, c, 0.8 + Math.random() * 0.7);
 
       // occasional second color nearby sets off visible mixing
       if (Math.random() < 0.3) {
-        const c2 = this.inks[INK_KEYS[Math.floor(Math.random() * INK_KEYS.length)]];
+        const c2 = this.inks[Math.floor(Math.random() * this.inks.length)];
         const x2 = Math.min(Math.max(x + (Math.random() - 0.5) * 0.16, 0.08), 0.92);
         const y2 = Math.min(Math.max(y + (Math.random() - 0.5) * 0.16, 0.08), 0.92);
         const id = window.setTimeout(() => { if (!this.disposed) this.dropInk(x2, y2, c2, 0.5 + Math.random() * 0.4); }, 220 + Math.random() * 300);
@@ -499,9 +505,10 @@ export class FluidSim {
   /* ── opening drops ── */
 
   private seed() {
-    this.dropInk(0.38, 0.58, this.inks.sumi, 0.75);
-    const t1 = window.setTimeout(() => { if (!this.disposed) this.dropInk(0.62, 0.42, this.inks.ai, 0.6); }, 450);
-    const t2 = window.setTimeout(() => { if (!this.disposed) this.dropInk(0.5, 0.62, this.inks.shu, 0.5); }, 950);
+    const n = this.inks.length;
+    this.dropInk(0.38, 0.58, this.inks[0], 0.75);
+    const t1 = window.setTimeout(() => { if (!this.disposed) this.dropInk(0.62, 0.42, this.inks[1 % n], 0.6); }, 450);
+    const t2 = window.setTimeout(() => { if (!this.disposed) this.dropInk(0.5, 0.62, this.inks[2 % n], 0.5); }, 950);
     this.pendingTimeouts.push(t1, t2);
   }
 
