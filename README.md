@@ -42,6 +42,10 @@ inks on every touch:
 - **Sunset** — violet, crimson, burnt orange, amber
 - **Neon** — hot pink, cyan, lime, electric purple
 
+**Save** downloads the current marble as a PNG; **Record** captures a WebM
+video of the ink flowing while you keep drawing (click again to stop, or it
+caps at 30 seconds).
+
 **Keyboard:** `Space` drops ink at a random spot, `X` washes the surface,
 `S` saves the current marble as a PNG.
 
@@ -98,7 +102,7 @@ React 18 · TypeScript · Vite · Three.js · Firebase (optional)
 ## Roadmap
 
 - [x] PNG export of the current marble
-- [ ] Video capture of the flowing ink
+- [x] Video capture of the flowing ink (WebM)
 - [x] Switchable color palettes (traditional, ebru, sunset, neon)
 - [x] Physics control panel (ink flow, swirl, fade, force)
 - [x] Shared gallery (publish & browse marbles via Firebase)

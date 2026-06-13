@@ -22,6 +22,12 @@ const RING_INTERVAL = 0.28; // seconds
 const COMB_TINES = 9;
 const COMB_SPACING = 0.05;  // screen-height units
 
+const VIDEO_MIME_CANDIDATES = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+function pickVideoMime(): string | null {
+  if (typeof MediaRecorder === 'undefined') return null;
+  return VIDEO_MIME_CANDIDATES.find(m => MediaRecorder.isTypeSupported(m)) ?? null;
+}
+
 export class FluidSim {
   onInteract?: () => void;
 
@@ -60,6 +66,8 @@ export class FluidSim {
   private lastInteraction = 0;
   private washing = 0;
   private recording: { frames: string[]; remaining: number; interval: number; sinceLast: number; resolve: (frames: string[]) => void } | null = null;
+  private mediaRecorder: MediaRecorder | null = null;
+  private videoChunks: Blob[] = [];
   private ringTimer = 0;
   private ringPhase = 0;
   private nextDrop = 1200;
@@ -129,14 +137,52 @@ export class FluidSim {
     this.params[key] = value;
   }
 
-  // toDataURL/toBlob need a freshly drawn buffer: without preserveDrawingBuffer
+  // toDataURL needs a freshly drawn buffer: without preserveDrawingBuffer
   // the canvas is only readable in the same task as the render
   saveImage() {
     this.drawDisplay();
-    const stamp = new Date().toISOString().slice(0, 19).replace('T', '-').replace(/:/g, '');
+    this.download(this.renderer.domElement.toDataURL('image/png'), 'png');
+  }
+
+  get recordingSupported(): boolean {
+    return pickVideoMime() !== null && typeof this.renderer.domElement.captureStream === 'function';
+  }
+
+  // Captures the live canvas to a WebM via MediaRecorder while the user keeps
+  // drawing, so the exported video shows the ink actually flowing.
+  startRecording() {
+    if (this.mediaRecorder) return;
+    const mime = pickVideoMime();
+    if (!mime || typeof this.renderer.domElement.captureStream !== 'function') {
+      throw new Error("This browser can't record video. Try Chrome, Edge or Firefox.");
+    }
+    const stream = this.renderer.domElement.captureStream(30);
+    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 });
+    this.videoChunks = [];
+    rec.ondataavailable = e => { if (e.data.size > 0) this.videoChunks.push(e.data); };
+    rec.onstop = () => {
+      const url = URL.createObjectURL(new Blob(this.videoChunks, { type: mime }));
+      this.videoChunks = [];
+      this.download(url, 'webm');
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    };
+    rec.start();
+    this.mediaRecorder = rec;
+  }
+
+  stopRecording() {
+    this.mediaRecorder?.stop();
+    this.mediaRecorder = null;
+  }
+
+  private stamp() {
+    return new Date().toISOString().slice(0, 19).replace('T', '-').replace(/:/g, '');
+  }
+
+  private download(href: string, ext: string) {
     const a = document.createElement('a');
-    a.href = this.renderer.domElement.toDataURL('image/png');
-    a.download = `suminagashi-${stamp}.png`;
+    a.href = href;
+    a.download = `suminagashi-${this.stamp()}.${ext}`;
     a.click();
   }
 
@@ -180,6 +226,11 @@ export class FluidSim {
     this.disposed = true;
     this.recording?.resolve(this.recording.frames);
     this.recording = null;
+    if (this.mediaRecorder) {
+      this.mediaRecorder.onstop = null;
+      this.mediaRecorder.stop();
+      this.mediaRecorder = null;
+    }
     cancelAnimationFrame(this.rafId);
     this.pendingTimeouts.forEach(clearTimeout);
     const canvas = this.renderer.domElement;

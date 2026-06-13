@@ -186,6 +186,8 @@ canvas{display:block;width:100vw;height:100vh;cursor:crosshair;touch-action:none
 
 .act:disabled{opacity:.45;cursor:default}
 .act:disabled::after{display:none}
+.act-rec{color:var(--shu)}
+.act-rec::after{background:var(--shu);transform:scaleX(1)}
 
 /* ── toast ───────────────────────────── */
 .toast{

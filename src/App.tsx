@@ -22,9 +22,28 @@ export default function App() {
   const [clip, setClip] = useState<string[] | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [webglError, setWebglError] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordSecs, setRecordSecs] = useState(0);
   const palette = PALETTES[paletteIdx];
 
   const flash = (text: string) => setStatus(text);
+
+  const toggleRecord = () => {
+    const sim = simRef.current;
+    if (!sim) return;
+    if (recording) {
+      sim.stopRecording();
+      setRecording(false);
+      flash('Video saved');
+    } else {
+      try {
+        sim.startRecording();
+        setRecording(true);
+      } catch (e) {
+        flash(e instanceof Error ? e.message : 'Recording is not supported here');
+      }
+    }
+  };
 
   const updateParam = (key: keyof TuneParams, value: number) => {
     setParams(p => ({ ...p, [key]: value }));
@@ -91,6 +110,22 @@ export default function App() {
     return () => clearTimeout(t);
   }, [status]);
 
+  useEffect(() => {
+    if (!recording) return;
+    setRecordSecs(0);
+    const start = Date.now();
+    const id = setInterval(() => {
+      const secs = Math.floor((Date.now() - start) / 1000);
+      setRecordSecs(secs);
+      if (secs >= 30) {
+        simRef.current?.stopRecording();
+        setRecording(false);
+        flash('Video saved');
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [recording]);
+
   return (
     <>
       <div className="stage" ref={stageRef} />
@@ -120,6 +155,12 @@ export default function App() {
 
           {status && <div className="toast" role="status">{status}</div>}
 
+          {recording && (
+            <div className="rec-badge" role="status">
+              <span className="rec-dot" />Recording {Math.floor(recordSecs / 60)}:{String(recordSecs % 60).padStart(2, '0')}
+            </div>
+          )}
+
           {publishOpen && (
             <PublishDialog clip={clip} onPublish={publishImage} onClose={() => setPublishOpen(false)} />
           )}
@@ -132,6 +173,7 @@ export default function App() {
             tool={tool}
             autoFlow={autoFlow}
             tuneOpen={tuneOpen}
+            recording={recording}
             onPalette={() => setPaletteIdx(i => (i + 1) % PALETTES.length)}
             onInk={setInkMode}
             onTool={setTool}
@@ -139,6 +181,7 @@ export default function App() {
             onTune={() => setTuneOpen(v => !v)}
             onWash={() => simRef.current?.wash()}
             onSave={() => simRef.current?.saveImage()}
+            onRecord={toggleRecord}
             onPublish={startPublish}
             onGallery={() => setGalleryOpen(true)}
           />

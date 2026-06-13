@@ -18,6 +18,7 @@ interface DockProps {
   tool: Tool;
   autoFlow: boolean;
   tuneOpen: boolean;
+  recording: boolean;
   onPalette: () => void;
   onInk: (mode: InkMode) => void;
   onTool: (tool: Tool) => void;
@@ -25,11 +26,12 @@ interface DockProps {
   onTune: () => void;
   onWash: () => void;
   onSave: () => void;
+  onRecord: () => void;
   onPublish: () => void;
   onGallery: () => void;
 }
 
-export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, onPalette, onInk, onTool, onAuto, onTune, onWash, onSave, onPublish, onGallery }: DockProps) {
+export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, recording, onPalette, onInk, onTool, onAuto, onTune, onWash, onSave, onRecord, onPublish, onGallery }: DockProps) {
   const hexes = palette.colors.map(c => c.hex);
   const cycleBg = `conic-gradient(${[...hexes, hexes[0]].join(', ')})`;
 
@@ -90,6 +92,13 @@ export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, onPal
       </button>
       <button className="act" title="Download the current marble as a PNG" onClick={onSave}>
         Save
+      </button>
+      <button
+        className={recording ? 'act act-rec' : 'act'}
+        title={recording ? 'Stop and download the video' : 'Record a video of the flowing ink'}
+        onClick={onRecord}
+      >
+        {recording ? 'Stop' : 'Record'}
       </button>
       <button className="act" title="Pick a frame and publish it to the shared gallery" onClick={onPublish}>
         Publish
