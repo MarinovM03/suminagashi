@@ -1,23 +1,23 @@
-import type { InkMode, Tool } from '../engine/config';
-
-const INK_BUTTONS: { mode: InkMode; cls: string; label: string; title: string }[] = [
-  { mode: 'cycle', cls: 'ink-cycle', label: '巡', title: 'Cycle — each touch uses the next ink' },
-  { mode: 'sumi', cls: 'ink-sumi', label: '墨', title: 'Sumi — ink black' },
-  { mode: 'ai', cls: 'ink-ai', label: '藍', title: 'Ai — indigo' },
-  { mode: 'shu', cls: 'ink-shu', label: '朱', title: 'Shu — vermilion' },
-  { mode: 'matsuba', cls: 'ink-matsuba', label: '松葉', title: 'Matsuba — pine green' },
-];
+import type { InkMode, Palette, Tool } from '../engine/config';
 
 const TOOL_BUTTONS: { tool: Tool; label: string; title: string }[] = [
-  { tool: 'brush', label: '筆', title: 'Brush — drag to draw ink' },
-  { tool: 'ring', label: '輪', title: 'Rings — press and hold to drop concentric rings' },
-  { tool: 'comb', label: '櫛', title: 'Comb — drag across ink to feather it into waves' },
+  { tool: 'brush', label: 'Brush', title: 'Drag to draw ink' },
+  { tool: 'ring', label: 'Rings', title: 'Press and hold to drop concentric rings' },
+  { tool: 'comb', label: 'Comb', title: 'Drag across ink to feather it into waves' },
 ];
 
+function lighten(hex: string, amount = 0.3) {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (v: number) => Math.round(v + (255 - v) * amount);
+  return `rgb(${mix((n >> 16) & 255)}, ${mix((n >> 8) & 255)}, ${mix(n & 255)})`;
+}
+
 interface DockProps {
+  palette: Palette;
   inkMode: InkMode;
   tool: Tool;
   autoFlow: boolean;
+  onPalette: () => void;
   onInk: (mode: InkMode) => void;
   onTool: (tool: Tool) => void;
   onAuto: () => void;
@@ -25,7 +25,10 @@ interface DockProps {
   onSave: () => void;
 }
 
-export default function Dock({ inkMode, tool, autoFlow, onInk, onTool, onAuto, onWash, onSave }: DockProps) {
+export default function Dock({ palette, inkMode, tool, autoFlow, onPalette, onInk, onTool, onAuto, onWash, onSave }: DockProps) {
+  const hexes = palette.colors.map(c => c.hex);
+  const cycleBg = `conic-gradient(${[...hexes, hexes[0]].join(', ')})`;
+
   return (
     <div className="dock" role="toolbar" aria-label="Ink controls">
       <div className="tools">
@@ -45,18 +48,30 @@ export default function Dock({ inkMode, tool, autoFlow, onInk, onTool, onAuto, o
       <div className="sep" />
 
       <div className="inks">
-        {INK_BUTTONS.map(b => (
+        <button
+          className="ink"
+          style={{ background: cycleBg }}
+          aria-pressed={inkMode === 'cycle'}
+          title="Cycle — each touch uses the next ink"
+          aria-label="Cycle"
+          onClick={() => onInk('cycle')}
+        />
+        {palette.colors.map((c, i) => (
           <button
-            key={b.mode}
-            className={`ink ${b.cls}`}
-            aria-pressed={inkMode === b.mode}
-            title={b.title}
-            onClick={() => onInk(b.mode)}
-          >
-            <span className="lbl">{b.label}</span>
-          </button>
+            key={c.hex + i}
+            className="ink"
+            style={{ background: `radial-gradient(circle at 35% 30%, ${lighten(c.hex)}, ${c.hex})` }}
+            aria-pressed={inkMode === i}
+            title={c.label}
+            aria-label={c.label}
+            onClick={() => onInk(i)}
+          />
         ))}
       </div>
+
+      <button className="act" title="Switch color palette" onClick={onPalette}>
+        {palette.label}
+      </button>
 
       <div className="sep" />
 
