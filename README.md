@@ -64,29 +64,24 @@ without it, everything else still works.
 ## Shared gallery (optional)
 
 The **Share** button publishes the current marble to a public gallery that the
-**Gallery** button browses. It is backed by Firebase — there is no custom
-server to run. Firebase loads lazily, so it never slows the initial canvas.
+**Gallery** button browses. It is backed by Cloud Firestore alone — a
+downscaled preview is stored inline in each document, so it stays on Firebase's
+free tier with no Cloud Storage and no custom server. Firebase loads lazily, so
+it never slows the initial canvas.
 
 To enable it:
 
 1. Create a Firebase project and a **Web app** in the Firebase console.
-2. Enable **Cloud Firestore** and **Storage**.
-3. Copy `.env.example` to `.env` and fill in the web config values.
-4. Set security rules so anyone can read and post, but not tamper:
+2. Enable **Cloud Firestore** (Storage is not needed).
+3. Copy `.env.example` to `.env` and fill in the web config values
+   (`storageBucket` is optional — only `apiKey` and `projectId` are required).
+4. Set Firestore rules so anyone can read and post, but not tamper:
 
-   _Storage_
-   ```
-   match /marbles/{file} {
-     allow read: if true;
-     allow write: if request.resource.size < 4 * 1024 * 1024
-                  && request.resource.contentType == 'image/png';
-   }
-   ```
-   _Firestore_
    ```
    match /marbles/{id} {
      allow read: if true;
-     allow create: if true;
+     allow create: if request.resource.data.image is string
+                   && request.resource.data.image.size() < 1048487;
      allow update, delete: if false;
    }
    ```

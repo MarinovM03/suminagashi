@@ -17,7 +17,7 @@ export default function App() {
   const [params, setParams] = useState<TuneParams>({ ...DEFAULT_PARAMS });
   const [tuneOpen, setTuneOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [sharing, setSharing] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const palette = PALETTES[paletteIdx];
 
@@ -34,20 +34,20 @@ export default function App() {
       simRef.current?.setParam(k, DEFAULT_PARAMS[k]));
   };
 
-  const share = async () => {
-    if (!galleryEnabled) {
-      flash('Connect Firebase to share — see README');
-      return;
-    }
-    setSharing(true);
+  const openGallery = () => {
+    setPreview(simRef.current?.capturePreview() ?? null);
+    setGalleryOpen(true);
+  };
+
+  const publish = async () => {
+    if (!preview) return false;
     try {
-      const blob = await simRef.current!.captureBlob();
-      await publishMarble(blob, palette.label);
-      flash('Shared to the gallery');
+      await publishMarble(preview, palette.label);
+      flash('Published to the gallery');
+      return true;
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not share');
-    } finally {
-      setSharing(false);
+      flash(e instanceof Error ? e.message : 'Could not publish');
+      return false;
     }
   };
 
@@ -99,7 +99,9 @@ export default function App() {
 
       {status && <div className="toast" role="status">{status}</div>}
 
-      {galleryOpen && <Gallery onClose={() => setGalleryOpen(false)} />}
+      {galleryOpen && (
+        <Gallery preview={preview} onPublish={publish} onClose={() => setGalleryOpen(false)} />
+      )}
 
       <Dock
         palette={palette}
@@ -107,7 +109,6 @@ export default function App() {
         tool={tool}
         autoFlow={autoFlow}
         tuneOpen={tuneOpen}
-        sharing={sharing}
         onPalette={() => setPaletteIdx(i => (i + 1) % PALETTES.length)}
         onInk={setInkMode}
         onTool={setTool}
@@ -115,8 +116,7 @@ export default function App() {
         onTune={() => setTuneOpen(v => !v)}
         onWash={() => simRef.current?.wash()}
         onSave={() => simRef.current?.saveImage()}
-        onShare={share}
-        onGallery={() => setGalleryOpen(true)}
+        onGallery={openGallery}
       />
     </>
   );

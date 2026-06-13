@@ -51,9 +51,9 @@ export default function Gallery({ onClose }: GalleryProps) {
         {state.kind === 'ready' && state.marbles.length > 0 && (
           <div className="gallery-grid">
             {state.marbles.map(m => (
-              <a key={m.id} className="gallery-item" href={m.url} target="_blank" rel="noopener noreferrer" title={m.palette}>
+              <div key={m.id} className="gallery-item" title={m.palette}>
                 <img src={m.url} alt={m.palette ? `${m.palette} marble` : 'marble'} loading="lazy" />
-              </a>
+              </div>
             ))}
           </div>
         )}

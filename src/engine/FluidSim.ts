@@ -139,14 +139,17 @@ export class FluidSim {
     a.click();
   }
 
-  captureBlob(): Promise<Blob> {
+  // Downscaled JPEG for the shared gallery — small enough to live inside a
+  // single Firestore document (1 MiB limit). Full-res stays in saveImage().
+  capturePreview(maxWidth = 1000, quality = 0.82): string {
     this.drawDisplay();
-    return new Promise((resolve, reject) => {
-      this.renderer.domElement.toBlob(
-        b => (b ? resolve(b) : reject(new Error('Could not capture the canvas'))),
-        'image/png',
-      );
-    });
+    const src = this.renderer.domElement;
+    const scale = Math.min(1, maxWidth / src.width);
+    const off = document.createElement('canvas');
+    off.width = Math.round(src.width * scale);
+    off.height = Math.round(src.height * scale);
+    off.getContext('2d')!.drawImage(src, 0, 0, off.width, off.height);
+    return off.toDataURL('image/jpeg', quality);
   }
 
   private drawDisplay() {

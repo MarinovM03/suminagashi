@@ -1,5 +1,4 @@
 import type { Firestore } from 'firebase/firestore';
-import type { FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -9,9 +8,7 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-export const galleryEnabled = Boolean(
-  firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.storageBucket,
-);
+export const galleryEnabled = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 
 export interface Marble {
   id: string;
@@ -21,43 +18,37 @@ export interface Marble {
 }
 
 // Firebase loads on first use so it never weighs down the initial canvas paint.
-let services: Promise<{ db: Firestore; storage: FirebaseStorage }> | null = null;
+let dbPromise: Promise<Firestore> | null = null;
 
-function getServices() {
-  if (!services) {
-    services = (async () => {
+function getDb() {
+  if (!dbPromise) {
+    dbPromise = (async () => {
       const { initializeApp } = await import('firebase/app');
       const { getFirestore } = await import('firebase/firestore');
-      const { getStorage } = await import('firebase/storage');
-      const app = initializeApp(firebaseConfig);
-      return { db: getFirestore(app), storage: getStorage(app) };
+      return getFirestore(initializeApp(firebaseConfig));
     })();
   }
-  return services;
+  return dbPromise;
 }
 
-export async function publishMarble(blob: Blob, palette: string) {
-  const { db, storage } = await getServices();
+// The preview image is stored inline as a data URL — keeps the gallery on
+// Firebase's free tier (Storage now requires a paid plan).
+export async function publishMarble(image: string, palette: string) {
+  const db = await getDb();
   const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
-  const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-
-  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const imgRef = ref(storage, `marbles/${id}.png`);
-  await uploadBytes(imgRef, blob, { contentType: 'image/png' });
-  const url = await getDownloadURL(imgRef);
-  await addDoc(collection(db, 'marbles'), { url, palette, createdAt: serverTimestamp() });
+  await addDoc(collection(db, 'marbles'), { image, palette, createdAt: serverTimestamp() });
 }
 
 export async function fetchMarbles(max = 24): Promise<Marble[]> {
-  const { db } = await getServices();
+  const db = await getDb();
   const { collection, getDocs, query, orderBy, limit } = await import('firebase/firestore');
 
   const snap = await getDocs(query(collection(db, 'marbles'), orderBy('createdAt', 'desc'), limit(max)));
   return snap.docs.map(d => {
-    const data = d.data() as { url: string; palette?: string; createdAt?: { toMillis(): number } };
+    const data = d.data() as { image: string; palette?: string; createdAt?: { toMillis(): number } };
     return {
       id: d.id,
-      url: data.url,
+      url: data.image,
       palette: data.palette ?? '',
       createdAt: data.createdAt?.toMillis() ?? Date.now(),
     };
