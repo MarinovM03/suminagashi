@@ -2,6 +2,11 @@ node_modules/
 dist/
 *.local
 
+# local secrets / env (Firebase keys); .env.example is committed
+.env
+.env.*
+!.env.example
+
 # editor / tooling
 .claude/
 CLAUDE.md

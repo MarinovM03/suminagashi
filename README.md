@@ -22,10 +22,15 @@ let the auto-flow mode paint on its own.
 
 ## Tools
 
-- **Brush (筆)** — drag to draw ink; hovering stirs the water without ink
-- **Rings (輪)** — press and hold: alternating drops of ink and water push
+- **Brush** — drag to draw ink; the ink feeds in proportion to stroke speed,
+  so it spreads on the water instead of saturating like a marker. Hovering
+  stirs the water without depositing ink.
+- **Rings** — press and hold: alternating drops of ink and water push
   outward into concentric rings, the classic suminagashi technique
-- **Comb (櫛)** — drag a row of tines through floating ink to feather it
+- **Comb** — drag a row of tines through floating ink to feather it
+
+A **Tune** panel exposes the fluid physics live — ink flow, swirl, fade and
+force — with a reset to defaults.
 
 ## Color palettes
 
@@ -49,14 +54,55 @@ npm run dev
 
 Build for production with `npm run build` (output in `dist/`).
 
+## Deploying
+
+The app is a fully static front-end — no server required. `npm run build`
+produces a `dist/` folder you can host on Netlify, Vercel, GitHub Pages,
+Cloudflare Pages or Firebase Hosting. The shared gallery (below) is optional;
+without it, everything else still works.
+
+## Shared gallery (optional)
+
+The **Share** button publishes the current marble to a public gallery that the
+**Gallery** button browses. It is backed by Firebase — there is no custom
+server to run. Firebase loads lazily, so it never slows the initial canvas.
+
+To enable it:
+
+1. Create a Firebase project and a **Web app** in the Firebase console.
+2. Enable **Cloud Firestore** and **Storage**.
+3. Copy `.env.example` to `.env` and fill in the web config values.
+4. Set security rules so anyone can read and post, but not tamper:
+
+   _Storage_
+   ```
+   match /marbles/{file} {
+     allow read: if true;
+     allow write: if request.resource.size < 4 * 1024 * 1024
+                  && request.resource.contentType == 'image/png';
+   }
+   ```
+   _Firestore_
+   ```
+   match /marbles/{id} {
+     allow read: if true;
+     allow create: if true;
+     allow update, delete: if false;
+   }
+   ```
+
+The Firebase web keys are not secret (they ship in any client bundle); access
+is governed entirely by these rules. For a high-traffic site, add Firebase
+Anonymous Auth + App Check to curb abuse.
+
 ## Stack
 
-React 18 · TypeScript · Vite · Three.js
+React 18 · TypeScript · Vite · Three.js · Firebase (optional)
 
 ## Roadmap
 
 - [x] PNG export of the current marble
 - [ ] Video capture of the flowing ink
 - [x] Switchable color palettes (traditional, ebru, sunset, neon)
-- [ ] Physics control panel (vorticity, fade, force)
-- [ ] Gallery & sharing
+- [x] Physics control panel (ink flow, swirl, fade, force)
+- [x] Shared gallery (publish & browse marbles via Firebase)

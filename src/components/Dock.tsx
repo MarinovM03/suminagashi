@@ -17,15 +17,20 @@ interface DockProps {
   inkMode: InkMode;
   tool: Tool;
   autoFlow: boolean;
+  tuneOpen: boolean;
+  sharing: boolean;
   onPalette: () => void;
   onInk: (mode: InkMode) => void;
   onTool: (tool: Tool) => void;
   onAuto: () => void;
+  onTune: () => void;
   onWash: () => void;
   onSave: () => void;
+  onShare: () => void;
+  onGallery: () => void;
 }
 
-export default function Dock({ palette, inkMode, tool, autoFlow, onPalette, onInk, onTool, onAuto, onWash, onSave }: DockProps) {
+export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, sharing, onPalette, onInk, onTool, onAuto, onTune, onWash, onSave, onShare, onGallery }: DockProps) {
   const hexes = palette.colors.map(c => c.hex);
   const cycleBg = `conic-gradient(${[...hexes, hexes[0]].join(', ')})`;
 
@@ -78,11 +83,20 @@ export default function Dock({ palette, inkMode, tool, autoFlow, onPalette, onIn
       <button className="act" aria-pressed={autoFlow} title="Toggle idle auto-drops and the ambient current" onClick={onAuto}>
         <span className="dot" />Auto flow
       </button>
+      <button className="act" aria-expanded={tuneOpen} title="Adjust the fluid physics" onClick={onTune}>
+        Tune
+      </button>
       <button className="act" title="Gently wash the ink away" onClick={onWash}>
         Wash
       </button>
       <button className="act" title="Download the current marble as a PNG" onClick={onSave}>
         Save
+      </button>
+      <button className="act" disabled={sharing} title="Publish the current marble to the shared gallery" onClick={onShare}>
+        {sharing ? 'Sharing…' : 'Share'}
+      </button>
+      <button className="act" title="Browse marbles people have shared" onClick={onGallery}>
+        Gallery
       </button>
     </div>
   );

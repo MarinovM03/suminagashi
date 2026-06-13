@@ -128,19 +128,32 @@ export class FluidSim {
     this.params[key] = value;
   }
 
-  // toDataURL needs a freshly drawn buffer: without preserveDrawingBuffer
+  // toDataURL/toBlob need a freshly drawn buffer: without preserveDrawingBuffer
   // the canvas is only readable in the same task as the render
   saveImage() {
-    const d = this.displayMat.uniforms;
-    d.uDye.value = this.dye.read.texture;
-    d.uTexel.value.copy(this.dye.texel);
-    this.blit(this.displayMat, null);
-
+    this.drawDisplay();
     const stamp = new Date().toISOString().slice(0, 19).replace('T', '-').replace(/:/g, '');
     const a = document.createElement('a');
     a.href = this.renderer.domElement.toDataURL('image/png');
     a.download = `suminagashi-${stamp}.png`;
     a.click();
+  }
+
+  captureBlob(): Promise<Blob> {
+    this.drawDisplay();
+    return new Promise((resolve, reject) => {
+      this.renderer.domElement.toBlob(
+        b => (b ? resolve(b) : reject(new Error('Could not capture the canvas'))),
+        'image/png',
+      );
+    });
+  }
+
+  private drawDisplay() {
+    const d = this.displayMat.uniforms;
+    d.uDye.value = this.dye.read.texture;
+    d.uTexel.value.copy(this.dye.texel);
+    this.blit(this.displayMat, null);
   }
 
   dispose() {
