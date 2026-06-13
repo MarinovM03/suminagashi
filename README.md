@@ -27,10 +27,15 @@ let the auto-flow mode paint on its own.
   outward into concentric rings, the classic suminagashi technique
 - **Comb (櫛)** — drag a row of tines through floating ink to feather it
 
-## Inks
+## Color palettes
 
-Four traditional pigments: sumi (ink black), ai (indigo), shu (vermilion)
-and matsuba (pine green), plus a cycle mode that rotates through them.
+Four switchable palettes, each with a cycle mode that rotates through its
+inks on every touch:
+
+- **Traditional** — sumi (ink black), ai (indigo), shu (vermilion), matsuba (pine green)
+- **Ebru** — lapis, turquoise, oxide red, ochre, after Turkish paper marbling
+- **Sunset** — violet, crimson, burnt orange, amber
+- **Neon** — hot pink, cyan, lime, electric purple
 
 **Keyboard:** `Space` drops ink at a random spot, `X` washes the surface,
 `S` saves the current marble as a PNG.
@@ -52,6 +57,6 @@ React 18 · TypeScript · Vite · Three.js
 
 - [x] PNG export of the current marble
 - [ ] Video capture of the flowing ink
-- [ ] Custom color palettes (Turkish ebru, sunset, neon…)
+- [x] Switchable color palettes (traditional, ebru, sunset, neon)
 - [ ] Physics control panel (vorticity, fade, force)
 - [ ] Gallery & sharing
