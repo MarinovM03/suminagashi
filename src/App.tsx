@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FluidSim } from './engine/FluidSim';
 import { DEFAULT_PARAMS, PALETTES, type InkMode, type TuneParams, type Tool } from './engine/config';
-import { galleryEnabled, publishMarble } from './gallery';
+import { publishMarble } from './gallery';
 import Dock from './components/Dock';
 import TunePanel from './components/TunePanel';
 import Gallery from './components/Gallery';

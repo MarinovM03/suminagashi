@@ -63,11 +63,11 @@ without it, everything else still works.
 
 ## Shared gallery (optional)
 
-The **Share** button publishes the current marble to a public gallery that the
-**Gallery** button browses. It is backed by Cloud Firestore alone — a
-downscaled preview is stored inline in each document, so it stays on Firebase's
-free tier with no Cloud Storage and no custom server. Firebase loads lazily, so
-it never slows the initial canvas.
+The **Gallery** button opens a public wall of shared marbles, with a **Publish**
+button at the top to add the piece currently on your canvas. It is backed by
+Cloud Firestore alone — a downscaled preview is stored inline in each document,
+so it stays on Firebase's free tier with no Cloud Storage and no custom server.
+Firebase loads lazily, so it never slows the initial canvas.
 
 To enable it:
 
@@ -101,3 +101,6 @@ React 18 · TypeScript · Vite · Three.js · Firebase (optional)
 - [x] Switchable color palettes (traditional, ebru, sunset, neon)
 - [x] Physics control panel (ink flow, swirl, fade, force)
 - [x] Shared gallery (publish & browse marbles via Firebase)
+- [ ] Community gallery — accounts, profiles, likes / most-loved sort, and
+      per-marble share links (URL + social preview). Needs auth + moderation;
+      to be decided later.

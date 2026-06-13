@@ -18,7 +18,6 @@ interface DockProps {
   tool: Tool;
   autoFlow: boolean;
   tuneOpen: boolean;
-  sharing: boolean;
   onPalette: () => void;
   onInk: (mode: InkMode) => void;
   onTool: (tool: Tool) => void;
@@ -26,11 +25,10 @@ interface DockProps {
   onTune: () => void;
   onWash: () => void;
   onSave: () => void;
-  onShare: () => void;
   onGallery: () => void;
 }
 
-export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, sharing, onPalette, onInk, onTool, onAuto, onTune, onWash, onSave, onShare, onGallery }: DockProps) {
+export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, onPalette, onInk, onTool, onAuto, onTune, onWash, onSave, onGallery }: DockProps) {
   const hexes = palette.colors.map(c => c.hex);
   const cycleBg = `conic-gradient(${[...hexes, hexes[0]].join(', ')})`;
 
@@ -92,10 +90,7 @@ export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, shari
       <button className="act" title="Download the current marble as a PNG" onClick={onSave}>
         Save
       </button>
-      <button className="act" disabled={sharing} title="Publish the current marble to the shared gallery" onClick={onShare}>
-        {sharing ? 'Sharing…' : 'Share'}
-      </button>
-      <button className="act" title="Browse marbles people have shared" onClick={onGallery}>
+      <button className="act" title="Browse and publish to the shared gallery" onClick={onGallery}>
         Gallery
       </button>
     </div>

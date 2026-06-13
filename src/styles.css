@@ -210,6 +210,26 @@ canvas{display:block;width:100vw;height:100vh;cursor:crosshair;touch-action:none
   padding:16px 20px;border-bottom:1px solid var(--line);
   font-size:13px;letter-spacing:.22em;color:rgba(26,26,31,.78);
 }
+.gallery-publish{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 20px;border-bottom:1px solid var(--line);
+}
+.gallery-publish-thumb{
+  width:56px;height:36px;object-fit:cover;border-radius:6px;
+  border:1px solid var(--line);flex:none;
+}
+.gallery-publish-text{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.gallery-publish-text strong{font-size:12px;letter-spacing:.1em;font-weight:700;color:var(--sumi)}
+.gallery-publish-text span{font-size:11px;color:rgba(26,26,31,.55)}
+.gallery-publish-btn{
+  appearance:none;cursor:pointer;flex:none;
+  border:1px solid var(--sumi);border-radius:999px;background:var(--sumi);
+  color:var(--paper);font-family:inherit;font-size:12px;letter-spacing:.16em;
+  padding:8px 20px;transition:opacity .2s;
+}
+.gallery-publish-btn:hover{opacity:.85}
+.gallery-publish-btn:disabled{opacity:.45;cursor:default}
+
 .gallery-msg{padding:40px 24px;text-align:center;color:rgba(26,26,31,.6);font-size:13px;line-height:1.7}
 .gallery-msg code{font-family:ui-monospace,monospace;font-size:12px;background:rgba(26,26,31,.07);padding:1px 5px;border-radius:4px}
 .gallery-grid{
