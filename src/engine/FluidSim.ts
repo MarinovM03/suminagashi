@@ -59,6 +59,7 @@ export class FluidSim {
   private pointer = { down: false, moved: false, x: 0, y: 0, px: 0, py: 0, color: new THREE.Color('#1a1a1f') };
   private lastInteraction = 0;
   private washing = 0;
+  private recording: { frames: string[]; remaining: number; interval: number; sinceLast: number; resolve: (frames: string[]) => void } | null = null;
   private ringTimer = 0;
   private ringPhase = 0;
   private nextDrop = 1200;
@@ -139,10 +140,26 @@ export class FluidSim {
     a.click();
   }
 
-  // Downscaled JPEG for the shared gallery — small enough to live inside a
-  // single Firestore document (1 MiB limit). Full-res stays in saveImage().
-  capturePreview(maxWidth = 1000, quality = 0.82): string {
-    this.drawDisplay();
+  // Records a short clip of downscaled JPEG frames so the user can pick the
+  // best-looking moment to publish. Frames are grabbed inside the render loop
+  // (see frame()), where the canvas buffer is valid in the same task.
+  recordClip(durationMs = 3000, fps = 10): Promise<string[]> {
+    const interval = 1000 / fps;
+    return new Promise(resolve => {
+      this.recording?.resolve(this.recording.frames);
+      this.recording = {
+        frames: [],
+        remaining: Math.max(1, Math.round(durationMs / interval)),
+        interval,
+        sinceLast: interval,
+        resolve,
+      };
+    });
+  }
+
+  // Each frame is small enough to live inside a single Firestore document
+  // (1 MiB limit), so the gallery needs no Cloud Storage.
+  private snapshot(maxWidth = 1000, quality = 0.82): string {
     const src = this.renderer.domElement;
     const scale = Math.min(1, maxWidth / src.width);
     const off = document.createElement('canvas');
@@ -161,6 +178,8 @@ export class FluidSim {
 
   dispose() {
     this.disposed = true;
+    this.recording?.resolve(this.recording.frames);
+    this.recording = null;
     cancelAnimationFrame(this.rafId);
     this.pendingTimeouts.forEach(clearTimeout);
     const canvas = this.renderer.domElement;
@@ -525,6 +544,18 @@ export class FluidSim {
     d.uTexel.value.copy(this.dye.texel);
     d.uTime.value = now * 0.001;
     this.blit(this.displayMat, null);
+
+    if (this.recording) {
+      this.recording.sinceLast += dt * 1000;
+      if (this.recording.sinceLast >= this.recording.interval) {
+        this.recording.sinceLast = 0;
+        this.recording.frames.push(this.snapshot());
+        if (--this.recording.remaining <= 0) {
+          this.recording.resolve(this.recording.frames);
+          this.recording = null;
+        }
+      }
+    }
   };
 
   /* ── opening drops ── */

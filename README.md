@@ -63,11 +63,12 @@ without it, everything else still works.
 
 ## Shared gallery (optional)
 
-The **Gallery** button opens a public wall of shared marbles, with a **Publish**
-button at the top to add the piece currently on your canvas. It is backed by
-Cloud Firestore alone — a downscaled preview is stored inline in each document,
-so it stays on Firebase's free tier with no Cloud Storage and no custom server.
-Firebase loads lazily, so it never slows the initial canvas.
+**Publish** records a short clip of the flowing ink and lets you scrub to the
+best-looking frame before posting it, so you pick the moment rather than gamble
+on the timing. **Gallery** opens the public wall of everything shared. It is
+backed by Cloud Firestore alone — a downscaled preview is stored inline in each
+document, so it stays on Firebase's free tier with no Cloud Storage and no
+custom server. Firebase loads lazily, so it never slows the initial canvas.
 
 To enable it:
 

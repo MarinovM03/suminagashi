@@ -25,10 +25,11 @@ interface DockProps {
   onTune: () => void;
   onWash: () => void;
   onSave: () => void;
+  onPublish: () => void;
   onGallery: () => void;
 }
 
-export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, onPalette, onInk, onTool, onAuto, onTune, onWash, onSave, onGallery }: DockProps) {
+export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, onPalette, onInk, onTool, onAuto, onTune, onWash, onSave, onPublish, onGallery }: DockProps) {
   const hexes = palette.colors.map(c => c.hex);
   const cycleBg = `conic-gradient(${[...hexes, hexes[0]].join(', ')})`;
 
@@ -90,7 +91,10 @@ export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, onPal
       <button className="act" title="Download the current marble as a PNG" onClick={onSave}>
         Save
       </button>
-      <button className="act" title="Browse and publish to the shared gallery" onClick={onGallery}>
+      <button className="act" title="Pick a frame and publish it to the shared gallery" onClick={onPublish}>
+        Publish
+      </button>
+      <button className="act" title="Browse the shared gallery" onClick={onGallery}>
         Gallery
       </button>
     </div>

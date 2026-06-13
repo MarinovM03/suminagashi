@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { FluidSim } from './engine/FluidSim';
 import { DEFAULT_PARAMS, PALETTES, type InkMode, type TuneParams, type Tool } from './engine/config';
-import { publishMarble } from './gallery';
+import { galleryEnabled, publishMarble } from './gallery';
 import Dock from './components/Dock';
 import TunePanel from './components/TunePanel';
 import Gallery from './components/Gallery';
+import PublishDialog from './components/PublishDialog';
 
 export default function App() {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -17,7 +18,8 @@ export default function App() {
   const [params, setParams] = useState<TuneParams>({ ...DEFAULT_PARAMS });
   const [tuneOpen, setTuneOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [clip, setClip] = useState<string[] | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const palette = PALETTES[paletteIdx];
 
@@ -34,15 +36,20 @@ export default function App() {
       simRef.current?.setParam(k, DEFAULT_PARAMS[k]));
   };
 
-  const openGallery = () => {
-    setPreview(simRef.current?.capturePreview() ?? null);
-    setGalleryOpen(true);
+  const startPublish = async () => {
+    if (!galleryEnabled) {
+      flash('Connect Firebase to publish — see README');
+      return;
+    }
+    setClip(null);
+    setPublishOpen(true);
+    const frames = await simRef.current!.recordClip();
+    setClip(frames);
   };
 
-  const publish = async () => {
-    if (!preview) return false;
+  const publishImage = async (image: string) => {
     try {
-      await publishMarble(preview, palette.label);
+      await publishMarble(image, palette.label);
       flash('Published to the gallery');
       return true;
     } catch (e) {
@@ -99,9 +106,11 @@ export default function App() {
 
       {status && <div className="toast" role="status">{status}</div>}
 
-      {galleryOpen && (
-        <Gallery preview={preview} onPublish={publish} onClose={() => setGalleryOpen(false)} />
+      {publishOpen && (
+        <PublishDialog clip={clip} onPublish={publishImage} onClose={() => setPublishOpen(false)} />
       )}
+
+      {galleryOpen && <Gallery onClose={() => setGalleryOpen(false)} />}
 
       <Dock
         palette={palette}
@@ -116,7 +125,8 @@ export default function App() {
         onTune={() => setTuneOpen(v => !v)}
         onWash={() => simRef.current?.wash()}
         onSave={() => simRef.current?.saveImage()}
-        onGallery={openGallery}
+        onPublish={startPublish}
+        onGallery={() => setGalleryOpen(true)}
       />
     </>
   );
