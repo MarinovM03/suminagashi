@@ -21,6 +21,7 @@ export default function App() {
   const [publishOpen, setPublishOpen] = useState(false);
   const [clip, setClip] = useState<string[] | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [webglError, setWebglError] = useState(false);
   const palette = PALETTES[paletteIdx];
 
   const flash = (text: string) => setStatus(text);
@@ -59,7 +60,13 @@ export default function App() {
   };
 
   useEffect(() => {
-    const sim = new FluidSim(stageRef.current!);
+    let sim: FluidSim;
+    try {
+      sim = new FluidSim(stageRef.current!);
+    } catch {
+      setWebglError(true);
+      return;
+    }
     sim.onInteract = () => setHintGone(true);
     simRef.current = sim;
     const timer = setTimeout(() => setHintGone(true), 9000);
@@ -93,41 +100,50 @@ export default function App() {
         <div className="sub">SUMINAGASHI — INK DISSOLUTION</div>
       </div>
 
-      <div className={hintGone ? 'hint gone' : 'hint'}>TRACE THE SURFACE — LET THE INK FLOW</div>
+      {webglError ? (
+        <div className="webgl-error" role="alert">
+          This canvas needs WebGL, which your browser or device couldn't start.
+          Try another browser, or enable hardware acceleration, and reload.
+        </div>
+      ) : (
+        <>
+          <div className={hintGone ? 'hint gone' : 'hint'}>TRACE THE SURFACE — LET THE INK FLOW</div>
 
-      {tuneOpen && (
-        <TunePanel
-          params={params}
-          onChange={updateParam}
-          onReset={resetParams}
-          onClose={() => setTuneOpen(false)}
-        />
+          {tuneOpen && (
+            <TunePanel
+              params={params}
+              onChange={updateParam}
+              onReset={resetParams}
+              onClose={() => setTuneOpen(false)}
+            />
+          )}
+
+          {status && <div className="toast" role="status">{status}</div>}
+
+          {publishOpen && (
+            <PublishDialog clip={clip} onPublish={publishImage} onClose={() => setPublishOpen(false)} />
+          )}
+
+          {galleryOpen && <Gallery onClose={() => setGalleryOpen(false)} />}
+
+          <Dock
+            palette={palette}
+            inkMode={inkMode}
+            tool={tool}
+            autoFlow={autoFlow}
+            tuneOpen={tuneOpen}
+            onPalette={() => setPaletteIdx(i => (i + 1) % PALETTES.length)}
+            onInk={setInkMode}
+            onTool={setTool}
+            onAuto={() => setAutoFlow(v => !v)}
+            onTune={() => setTuneOpen(v => !v)}
+            onWash={() => simRef.current?.wash()}
+            onSave={() => simRef.current?.saveImage()}
+            onPublish={startPublish}
+            onGallery={() => setGalleryOpen(true)}
+          />
+        </>
       )}
-
-      {status && <div className="toast" role="status">{status}</div>}
-
-      {publishOpen && (
-        <PublishDialog clip={clip} onPublish={publishImage} onClose={() => setPublishOpen(false)} />
-      )}
-
-      {galleryOpen && <Gallery onClose={() => setGalleryOpen(false)} />}
-
-      <Dock
-        palette={palette}
-        inkMode={inkMode}
-        tool={tool}
-        autoFlow={autoFlow}
-        tuneOpen={tuneOpen}
-        onPalette={() => setPaletteIdx(i => (i + 1) % PALETTES.length)}
-        onInk={setInkMode}
-        onTool={setTool}
-        onAuto={() => setAutoFlow(v => !v)}
-        onTune={() => setTuneOpen(v => !v)}
-        onWash={() => simRef.current?.wash()}
-        onSave={() => simRef.current?.saveImage()}
-        onPublish={startPublish}
-        onGallery={() => setGalleryOpen(true)}
-      />
     </>
   );
 }

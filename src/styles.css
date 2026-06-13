@@ -40,6 +40,12 @@ canvas{display:block;width:100vw;height:100vh;cursor:crosshair;touch-action:none
 }
 .hint.gone{opacity:0}
 
+.webgl-error{
+  position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+  z-index:5;max-width:340px;text-align:center;
+  font-size:13px;line-height:1.85;letter-spacing:.03em;color:rgba(26,26,31,.6);
+}
+
 /* ── bottom dock ─────────────────────── */
 .dock{
   position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
