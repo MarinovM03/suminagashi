@@ -217,12 +217,37 @@ canvas{display:block;width:100vw;height:100vh;cursor:crosshair;touch-action:none
   gap:12px;padding:20px;overflow-y:auto;
 }
 .gallery-item{
+  appearance:none;padding:0;cursor:zoom-in;
   display:block;aspect-ratio:1;border-radius:8px;overflow:hidden;
   border:1px solid var(--line);background:var(--paper);
   transition:transform .2s ease;
 }
 .gallery-item:hover{transform:scale(1.03)}
 .gallery-item img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ── lightbox: enlarged marble ───────── */
+.lightbox{
+  position:fixed;inset:0;z-index:9;
+  display:flex;align-items:center;justify-content:center;padding:32px;
+  background:rgba(26,26,31,.82);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  cursor:zoom-out;animation:toast-in .2s ease;
+}
+.lightbox img{
+  max-width:min(1100px,94vw);max-height:88vh;
+  border-radius:10px;border:1px solid rgba(239,234,224,.18);
+  box-shadow:0 20px 60px rgba(0,0,0,.5);display:block;
+}
+.lightbox-cap{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  color:var(--paper);font-size:12px;letter-spacing:.16em;opacity:.85;
+}
+.lightbox-x{
+  position:fixed;top:18px;right:24px;
+  appearance:none;background:none;border:none;cursor:pointer;
+  color:var(--paper);font-size:30px;line-height:1;opacity:.8;transition:opacity .2s;
+}
+.lightbox-x:hover{opacity:1}
 
 /* ── publish: record badge + frame picker ─ */
 .rec-badge{
