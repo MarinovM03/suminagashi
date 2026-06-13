@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { simConfig, PALETTES, PAPER, type InkMode, type Tool } from './config';
+import { simConfig, DEFAULT_PARAMS, PALETTES, PAPER, type InkMode, type TuneParams, type Tool } from './config';
 import {
   VERT, ADVECT, SPLAT, RADIAL_PUSH, CURL, VORTICITY,
   DIVERGENCE, PRESSURE, GRADIENT_SUBTRACT, CLEAR, DISPLAY,
@@ -28,7 +28,8 @@ export class FluidSim {
   private tool: Tool = 'brush';
   private inkMode: InkMode = 'cycle';
   private inkCycleIdx = 0;
-  private autoFlow = true;
+  private autoFlow = false;
+  private params: TuneParams = { ...DEFAULT_PARAMS };
 
   private renderer: THREE.WebGLRenderer;
   private camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -121,6 +122,10 @@ export class FluidSim {
   setPalette(hexes: string[]) {
     this.inks = hexes.map(h => new THREE.Color(h));
     this.inkCycleIdx = 0;
+  }
+
+  setParam<K extends keyof TuneParams>(key: K, value: TuneParams[K]) {
+    this.params[key] = value;
   }
 
   // toDataURL needs a freshly drawn buffer: without preserveDrawingBuffer
@@ -295,8 +300,8 @@ export class FluidSim {
     const len = Math.hypot(vx, vy);
     if (len < 1e-5) return;
     const px = -vy / len, py = vx / len;
-    const fx = dx * simConfig.SPLAT_FORCE * 1.1;
-    const fy = dy * simConfig.SPLAT_FORCE * 1.1;
+    const fx = dx * this.params.force * 1.1;
+    const fy = dy * this.params.force * 1.1;
     for (let i = 0; i < COMB_TINES; i++) {
       const o = (i - (COMB_TINES - 1) / 2) * COMB_SPACING;
       this.splatVelocity(x + (px * o) / aspect, y + py * o, fx, fy, 0.55);
@@ -358,8 +363,8 @@ export class FluidSim {
     const dx = this.pointer.x - this.pointer.px;
     const dy = this.pointer.y - this.pointer.py;
     if (Math.abs(dx) + Math.abs(dy) < 1e-6) return;
-    const fx = dx * simConfig.SPLAT_FORCE;
-    const fy = dy * simConfig.SPLAT_FORCE;
+    const fx = dx * this.params.force;
+    const fy = dy * this.params.force;
 
     if (this.pointer.down && this.tool === 'comb') {
       this.comb(this.pointer.x, this.pointer.y, dx, dy);
@@ -369,8 +374,12 @@ export class FluidSim {
     const hoverBoost = this.pointer.down ? 1 : 1.7;
     this.splatVelocity(this.pointer.x, this.pointer.y, fx * hoverBoost, fy * hoverBoost, this.pointer.down ? 2.0 : 2.6);
     if (this.pointer.down && this.tool === 'brush') {
-      const speed = Math.min(Math.hypot(dx, dy) * 30, 1);
-      this.splatDye(this.pointer.x, this.pointer.y, this.inkAbsorption(this.pointer.color, 0.06 + speed * 0.12), 0.9);
+      // ink feeds in proportion to brush speed; a near-still brush adds
+      // almost none, so slow strokes stay watery instead of saturating
+      const speed = Math.min(Math.hypot(dx, dy) * 26, 1);
+      if (speed > 0.04) {
+        this.splatDye(this.pointer.x, this.pointer.y, this.inkAbsorption(this.pointer.color, speed * this.params.flow), 1.5);
+      }
     }
   }
 
@@ -422,7 +431,7 @@ export class FluidSim {
     vo.uVelocity.value = vel.read.texture;
     vo.uCurl.value = this.curlRT.texture;
     vo.uTexel.value.copy(vel.texel);
-    vo.uCurlStrength.value = simConfig.CURL;
+    vo.uCurlStrength.value = this.params.curl;
     vo.uDt.value = dt;
     this.blit(this.vorticityMat, vel.write);
     vel.swap();
@@ -465,7 +474,7 @@ export class FluidSim {
     ad.uVelocity.value = vel.read.texture;
     ad.uSource.value = this.dye.read.texture;
     ad.uTexel.value.copy(this.dye.texel);
-    ad.uDissipation.value = simConfig.DYE_DISSIPATION + (this.washing > 0 ? 2.4 : 0);
+    ad.uDissipation.value = this.params.fade + (this.washing > 0 ? 2.4 : 0);
     this.blit(this.advectMat, this.dye.write);
     this.dye.swap();
 

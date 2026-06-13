@@ -3,11 +3,29 @@ export const simConfig = {
   DYE_RES: 1280,
   PRESSURE_ITER: 28,
   VEL_DISSIPATION: 0.16,
-  DYE_DISSIPATION: 0.07,
-  CURL: 14,
   SPLAT_RADIUS: 0.0026,
-  SPLAT_FORCE: 5200,
 };
+
+export interface TuneParams {
+  flow: number;
+  curl: number;
+  fade: number;
+  force: number;
+}
+
+export const DEFAULT_PARAMS: TuneParams = {
+  flow: 0.14,
+  curl: 14,
+  fade: 0.07,
+  force: 5200,
+};
+
+export const PARAM_META: { key: keyof TuneParams; label: string; desc: string; min: number; max: number; step: number }[] = [
+  { key: 'flow', label: 'Ink flow', desc: 'How much pigment the brush releases as you draw.', min: 0.02, max: 0.4, step: 0.01 },
+  { key: 'curl', label: 'Swirl', desc: 'Strength of the eddies and curls in the water.', min: 0, max: 40, step: 1 },
+  { key: 'fade', label: 'Fade', desc: 'How quickly the ink dissolves and disappears.', min: 0, max: 0.5, step: 0.01 },
+  { key: 'force', label: 'Force', desc: 'How strongly your strokes push the water.', min: 1500, max: 11000, step: 100 },
+];
 
 export interface Palette {
   id: string;
