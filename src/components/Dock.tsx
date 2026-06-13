@@ -22,9 +22,10 @@ interface DockProps {
   onTool: (tool: Tool) => void;
   onAuto: () => void;
   onWash: () => void;
+  onSave: () => void;
 }
 
-export default function Dock({ inkMode, tool, autoFlow, onInk, onTool, onAuto, onWash }: DockProps) {
+export default function Dock({ inkMode, tool, autoFlow, onInk, onTool, onAuto, onWash, onSave }: DockProps) {
   return (
     <div className="dock" role="toolbar" aria-label="Ink controls">
       <div className="tools">
@@ -64,6 +65,9 @@ export default function Dock({ inkMode, tool, autoFlow, onInk, onTool, onAuto, o
       </button>
       <button className="act" title="Gently wash the ink away" onClick={onWash}>
         Wash
+      </button>
+      <button className="act" title="Download the current marble as a PNG" onClick={onSave}>
+        Save
       </button>
     </div>
   );

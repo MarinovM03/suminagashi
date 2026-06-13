@@ -46,6 +46,7 @@ export default function App() {
         onTool={setTool}
         onAuto={() => setAutoFlow(v => !v)}
         onWash={() => simRef.current?.wash()}
+        onSave={() => simRef.current?.saveImage()}
       />
     </>
   );

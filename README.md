@@ -32,7 +32,8 @@ let the auto-flow mode paint on its own.
 Four traditional pigments: sumi (ink black), ai (indigo), shu (vermilion)
 and matsuba (pine green), plus a cycle mode that rotates through them.
 
-**Keyboard:** `Space` drops ink at a random spot, `X` washes the surface.
+**Keyboard:** `Space` drops ink at a random spot, `X` washes the surface,
+`S` saves the current marble as a PNG.
 
 ## Running locally
 
@@ -49,7 +50,8 @@ React 18 · TypeScript · Vite · Three.js
 
 ## Roadmap
 
-- [ ] PNG export / video capture of the flowing ink
+- [x] PNG export of the current marble
+- [ ] Video capture of the flowing ink
 - [ ] Custom color palettes (Turkish ebru, sunset, neon…)
 - [ ] Physics control panel (vorticity, fade, force)
 - [ ] Gallery & sharing

@@ -118,6 +118,21 @@ export class FluidSim {
   setAutoFlow(on: boolean) { this.autoFlow = on; }
   wash() { this.washing = 1.6; }
 
+  // toDataURL needs a freshly drawn buffer: without preserveDrawingBuffer
+  // the canvas is only readable in the same task as the render
+  saveImage() {
+    const d = this.displayMat.uniforms;
+    d.uDye.value = this.dye.read.texture;
+    d.uTexel.value.copy(this.dye.texel);
+    this.blit(this.displayMat, null);
+
+    const stamp = new Date().toISOString().slice(0, 19).replace('T', '-').replace(/:/g, '');
+    const a = document.createElement('a');
+    a.href = this.renderer.domElement.toDataURL('image/png');
+    a.download = `suminagashi-${stamp}.png`;
+    a.click();
+  }
+
   dispose() {
     this.disposed = true;
     cancelAnimationFrame(this.rafId);
@@ -329,6 +344,7 @@ export class FluidSim {
       this.onInteract?.();
     }
     if (e.key === 'x' || e.key === 'X') this.wash();
+    if (e.key === 's' || e.key === 'S') this.saveImage();
   };
 
   private applyPointer() {
