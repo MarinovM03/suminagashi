@@ -120,7 +120,7 @@ export default function App() {
       if (secs >= 30) {
         simRef.current?.stopRecording();
         setRecording(false);
-        flash('Video saved');
+        setStatus('Video saved');
       }
     }, 250);
     return () => clearInterval(id);
