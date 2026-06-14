@@ -23,8 +23,6 @@ const RING_INTERVAL = 0.28; // seconds
 const COMB_TINES = 9;
 const COMB_SPACING = 0.05;  // screen-height units
 
-const SETTLE_MS = 4000; // pause the solver this long after the last activity to save battery
-
 const VIDEO_MIME_CANDIDATES = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
 function pickVideoMime(): string | null {
   if (typeof MediaRecorder === 'undefined') return null;
@@ -76,8 +74,6 @@ export class FluidSim {
   private nextDrop = 1200;
   private nextStir = 2600;
   private lastT = performance.now();
-  private lastActivity = performance.now();
-  private idle = false;
   private rafId = 0;
   private disposed = false;
   private pendingTimeouts: number[] = [];
@@ -119,8 +115,6 @@ export class FluidSim {
     const canvas = this.renderer.domElement;
     canvas.addEventListener('pointerdown', this.onPointerDown);
     canvas.addEventListener('pointermove', this.onPointerMove);
-    canvas.addEventListener('webglcontextlost', this.onContextLost);
-    canvas.addEventListener('webglcontextrestored', this.onContextRestored);
     addEventListener('pointerup', this.onPointerUp);
     addEventListener('pointercancel', this.onPointerUp);
     addEventListener('keydown', this.onKeyDown);
@@ -134,8 +128,8 @@ export class FluidSim {
 
   setTool(tool: Tool) { this.tool = tool; }
   setInkMode(mode: InkMode) { this.inkMode = mode; }
-  setAutoFlow(on: boolean) { this.autoFlow = on; this.wake(); }
-  wash() { this.washing = 1.6; this.wake(); }
+  setAutoFlow(on: boolean) { this.autoFlow = on; }
+  wash() { this.washing = 1.6; }
 
   setPalette(hexes: string[]) {
     this.inks = hexes.map(h => new THREE.Color(h));
@@ -144,7 +138,6 @@ export class FluidSim {
 
   setParam<K extends keyof TuneParams>(key: K, value: TuneParams[K]) {
     this.params[key] = value;
-    this.wake();
   }
 
   // toDataURL needs a freshly drawn buffer: without preserveDrawingBuffer
@@ -178,7 +171,6 @@ export class FluidSim {
     };
     rec.start();
     this.mediaRecorder = rec;
-    this.wake();
   }
 
   stopRecording() {
@@ -202,7 +194,6 @@ export class FluidSim {
   // (see frame()), where the canvas buffer is valid in the same task.
   recordClip(durationMs = 3000, fps = 10): Promise<string[]> {
     const interval = 1000 / fps;
-    this.wake();
     return new Promise(resolve => {
       this.recording?.resolve(this.recording.frames);
       this.recording = {
@@ -248,8 +239,6 @@ export class FluidSim {
     const canvas = this.renderer.domElement;
     canvas.removeEventListener('pointerdown', this.onPointerDown);
     canvas.removeEventListener('pointermove', this.onPointerMove);
-    canvas.removeEventListener('webglcontextlost', this.onContextLost);
-    canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
     removeEventListener('pointerup', this.onPointerUp);
     removeEventListener('pointercancel', this.onPointerUp);
     removeEventListener('keydown', this.onKeyDown);
@@ -357,7 +346,6 @@ export class FluidSim {
   }
 
   private dropInk(x: number, y: number, color: THREE.Color, strength: number) {
-    this.wake();
     this.splatDye(x, y, inkAbsorption(color, strength * 0.22), 1.0);
     const angle = Math.random() * Math.PI * 2;
     const speed = 60 + Math.random() * 80;
@@ -403,7 +391,6 @@ export class FluidSim {
   }
 
   private onPointerDown = (e: PointerEvent) => {
-    this.wake();
     const p = this.toUV(e);
     this.pointer.down = true;
     this.pointer.x = this.pointer.px = p.x;
@@ -424,7 +411,6 @@ export class FluidSim {
   };
 
   private onPointerMove = (e: PointerEvent) => {
-    this.wake();
     const p = this.toUV(e);
     this.pointer.px = this.pointer.x;
     this.pointer.py = this.pointer.y;
@@ -572,19 +558,8 @@ export class FluidSim {
 
   /* ── main loop ── */
 
-  // Marks activity and, if the solver has gone idle, restarts the loop. Called
-  // from every input/action so a settled canvas resumes instantly on use.
-  private wake() {
-    this.lastActivity = performance.now();
-    if (this.idle) {
-      this.idle = false;
-      this.lastT = performance.now();
-      this.rafId = requestAnimationFrame(this.frame);
-    }
-  }
-
   private frame = (now: number) => {
-    if (this.disposed || this.idle) return;
+    if (this.disposed) return;
     this.rafId = requestAnimationFrame(this.frame);
     let dt = (now - this.lastT) / 1000;
     this.lastT = now;
@@ -621,15 +596,6 @@ export class FluidSim {
         }
       }
     }
-
-    // Once the ink has settled and nothing is active, stop the loop. wake()
-    // restarts it on the next interaction. The last frame stays on screen.
-    const busy = this.autoFlow || this.pointer.down || this.washing > 0
-      || this.mediaRecorder !== null || this.recording !== null;
-    if (!busy && now - this.lastActivity > SETTLE_MS) {
-      this.idle = true;
-      cancelAnimationFrame(this.rafId);
-    }
   };
 
   /* ── opening drops ── */
@@ -643,7 +609,6 @@ export class FluidSim {
   }
 
   private onResize = () => {
-    this.wake();
     this.renderer.setSize(innerWidth, innerHeight);
     const S = this.simSizes();
     this.velocity.resize(S.sw, S.sh);
@@ -651,31 +616,5 @@ export class FluidSim {
     this.curlRT.setSize(S.sw, S.sh);
     this.divergeRT.setSize(S.sw, S.sh);
     this.dye.resize(S.dw, S.dh);
-  };
-
-  // The GPU can drop the WebGL context (sleep, driver reset). preventDefault
-  // lets the browser restore it; on restore we rebuild the cleared field
-  // buffers and start fresh rather than leaving a frozen canvas.
-  private onContextLost = (e: Event) => {
-    e.preventDefault();
-    this.idle = true;
-    cancelAnimationFrame(this.rafId);
-  };
-
-  private onContextRestored = () => {
-    const S = this.simSizes();
-    [this.velocity, this.dye, this.pressure].forEach(f => f.dispose());
-    this.curlRT.dispose();
-    this.divergeRT.dispose();
-    this.velocity = this.makeDoubleFBO(S.sw, S.sh);
-    this.dye = this.makeDoubleFBO(S.dw, S.dh);
-    this.pressure = this.makeDoubleFBO(S.sw, S.sh);
-    this.curlRT = this.makeRT(S.sw, S.sh);
-    this.divergeRT = this.makeRT(S.sw, S.sh);
-    this.idle = false;
-    this.lastT = performance.now();
-    this.lastActivity = performance.now();
-    this.seed();
-    this.rafId = requestAnimationFrame(this.frame);
   };
 }
