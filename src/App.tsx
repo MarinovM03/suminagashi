@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { FluidSim } from './engine/FluidSim';
 import { DEFAULT_PARAMS, PALETTES, type InkMode, type TuneParams, type Tool } from './engine/config';
 import { galleryEnabled, publishMarble } from './gallery';
+import { useFluidSim } from './useFluidSim';
 import Dock from './components/Dock';
 import TunePanel from './components/TunePanel';
 import Gallery from './components/Gallery';
@@ -9,24 +9,29 @@ import PublishDialog from './components/PublishDialog';
 
 export default function App() {
   const stageRef = useRef<HTMLDivElement>(null);
-  const simRef = useRef<FluidSim | null>(null);
   const [paletteIdx, setPaletteIdx] = useState(0);
   const [inkMode, setInkMode] = useState<InkMode>('cycle');
   const [tool, setTool] = useState<Tool>('brush');
   const [autoFlow, setAutoFlow] = useState(false);
-  const [hintGone, setHintGone] = useState(false);
   const [params, setParams] = useState<TuneParams>({ ...DEFAULT_PARAMS });
   const [tuneOpen, setTuneOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [clip, setClip] = useState<string[] | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [webglError, setWebglError] = useState(false);
+  const [status, setStatus] = useState<{ text: string } | null>(null);
   const [recording, setRecording] = useState(false);
   const [recordSecs, setRecordSecs] = useState(0);
   const palette = PALETTES[paletteIdx];
 
-  const flash = (text: string) => setStatus(text);
+  const { simRef, webglError, hintGone } = useFluidSim(stageRef, { tool, inkMode, autoFlow, palette });
+
+  // A fresh object each call so an identical repeated message still resets the timer.
+  const flash = (text: string) => setStatus({ text });
+
+  const cyclePalette = () => {
+    setPaletteIdx(i => (i + 1) % PALETTES.length);
+    setInkMode('cycle');
+  };
 
   const toggleRecord = () => {
     const sim = simRef.current;
@@ -79,32 +84,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    let sim: FluidSim;
-    try {
-      sim = new FluidSim(stageRef.current!);
-    } catch {
-      setWebglError(true);
-      return;
-    }
-    sim.onInteract = () => setHintGone(true);
-    simRef.current = sim;
-    const timer = setTimeout(() => setHintGone(true), 9000);
-    return () => {
-      clearTimeout(timer);
-      sim.dispose();
-      simRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    simRef.current?.setPalette(PALETTES[paletteIdx].colors.map(c => c.hex));
-    setInkMode('cycle');
-  }, [paletteIdx]);
-  useEffect(() => { simRef.current?.setInkMode(inkMode); }, [inkMode]);
-  useEffect(() => { simRef.current?.setTool(tool); }, [tool]);
-  useEffect(() => { simRef.current?.setAutoFlow(autoFlow); }, [autoFlow]);
-
-  useEffect(() => {
     if (!status) return;
     const t = setTimeout(() => setStatus(null), 2800);
     return () => clearTimeout(t);
@@ -120,18 +99,18 @@ export default function App() {
       if (secs >= 30) {
         simRef.current?.stopRecording();
         setRecording(false);
-        setStatus('Video saved');
+        setStatus({ text: 'Video saved' });
       }
     }, 250);
     return () => clearInterval(id);
-  }, [recording]);
+  }, [recording, simRef]);
 
   return (
     <>
       <div className="stage" ref={stageRef} />
 
       <div className="title">
-        <h1>墨流し</h1>
+        <h1 aria-label="Suminagashi" lang="ja">墨流し</h1>
         <div className="sub">SUMINAGASHI — INK DISSOLUTION</div>
       </div>
 
@@ -153,7 +132,7 @@ export default function App() {
             />
           )}
 
-          {status && <div className="toast" role="status">{status}</div>}
+          {status && <div className="toast" role="status">{status.text}</div>}
 
           {recording && (
             <div className="rec-badge" role="status">
@@ -174,7 +153,7 @@ export default function App() {
             autoFlow={autoFlow}
             tuneOpen={tuneOpen}
             recording={recording}
-            onPalette={() => setPaletteIdx(i => (i + 1) % PALETTES.length)}
+            onPalette={cyclePalette}
             onInk={setInkMode}
             onTool={setTool}
             onAuto={() => setAutoFlow(v => !v)}

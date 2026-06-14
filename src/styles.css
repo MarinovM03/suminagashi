@@ -11,6 +11,24 @@ html,body,#root{height:100%;overflow:hidden;background:var(--paper)}
 body{font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;color:var(--sumi)}
 canvas{display:block;width:100vw;height:100vh;cursor:crosshair;touch-action:none}
 
+/* keyboard focus rings (only for keyboard users, not mouse clicks) */
+button:focus-visible,
+.tune-label:focus-visible,
+input[type="range"]:focus-visible{
+  outline:2px solid var(--ai);
+  outline-offset:3px;
+  border-radius:4px;
+}
+button:focus:not(:focus-visible){outline:none}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+}
+
 /* ── vertical title ──────────────────── */
 .title{
   position:fixed;top:28px;left:26px;z-index:5;pointer-events:none;
@@ -63,7 +81,7 @@ canvas{display:block;width:100vw;height:100vh;cursor:crosshair;touch-action:none
 .tool{
   appearance:none;background:none;border:none;cursor:pointer;
   font-family:inherit;font-size:12px;letter-spacing:.18em;
-  color:rgba(26,26,31,.38);padding:4px 2px;position:relative;
+  color:rgba(26,26,31,.5);padding:4px 2px;position:relative;
   transition:color .25s;white-space:nowrap;
 }
 .tool:hover{color:rgba(26,26,31,.7)}
@@ -101,7 +119,7 @@ canvas{display:block;width:100vw;height:100vh;cursor:crosshair;touch-action:none
   transition:transform .3s ease;
 }
 .act:hover::after{transform:scaleX(1)}
-.act[aria-pressed="false"]{color:rgba(26,26,31,.38)}
+.act[aria-pressed="false"]{color:rgba(26,26,31,.5)}
 /* Tune toggles a panel rather than an on/off behaviour, so it stays
    available-looking when closed and shows a persistent underline when open */
 .act[aria-expanded="true"]{color:var(--sumi)}
