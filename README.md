@@ -71,31 +71,42 @@ without it, everything else still works.
 
 **Publish** records a short clip of the flowing ink and lets you scrub to the
 best-looking frame before posting it, so you pick the moment rather than gamble
-on the timing. **Gallery** opens the public wall of everything shared. It is
-backed by Cloud Firestore alone — a downscaled preview is stored inline in each
-document, so it stays on Firebase's free tier with no Cloud Storage and no
-custom server. Firebase loads lazily, so it never slows the initial canvas.
+on the timing. **Gallery** opens the public wall of everything shared, where you
+can delete marbles you posted yourself. It is backed by Cloud Firestore alone —
+a downscaled preview is stored inline in each document, so it stays on
+Firebase's free tier with no Cloud Storage and no custom server. Firebase loads
+lazily, so it never slows the initial canvas.
+
+Ownership uses **Anonymous Authentication**: each browser gets an invisible
+identity (no login screen), so only the poster can delete their own marble, and
+that ownership is enforced by the security rules — not just hidden in the UI.
 
 To enable it:
 
 1. Create a Firebase project and a **Web app** in the Firebase console.
 2. Enable **Cloud Firestore** (Storage is not needed).
-3. Copy `.env.example` to `.env` and fill in the web config values
+3. Under **Authentication → Sign-in method**, enable **Anonymous**.
+4. Copy `.env.example` to `.env` and fill in the web config values
    (`storageBucket` is optional — only `apiKey` and `projectId` are required).
-4. Set Firestore rules so anyone can read and post, but not tamper:
+5. Set Firestore rules so anyone can read, signed-in browsers can post as
+   themselves, and only the owner can delete:
 
    ```
    match /marbles/{id} {
      allow read: if true;
-     allow create: if request.resource.data.image is string
+     allow create: if request.auth != null
+                   && request.resource.data.owner == request.auth.uid
+                   && request.resource.data.image is string
                    && request.resource.data.image.size() < 1048487;
-     allow update, delete: if false;
+     allow update: if false;
+     allow delete: if request.auth != null
+                   && resource.data.owner == request.auth.uid;
    }
    ```
 
 The Firebase web keys are not secret (they ship in any client bundle); access
 is governed entirely by these rules. For a high-traffic site, add Firebase
-Anonymous Auth + App Check to curb abuse.
+App Check to further curb abuse.
 
 ## Stack
 
@@ -107,7 +118,6 @@ React 18 · TypeScript · Vite · Three.js · Firebase (optional)
 - [x] Video capture of the flowing ink (WebM)
 - [x] Switchable color palettes (traditional, ebru, sunset, neon)
 - [x] Physics control panel (ink flow, swirl, fade, force)
-- [x] Shared gallery (publish & browse marbles via Firebase)
-- [ ] Community gallery — accounts, profiles, likes / most-loved sort, and
-      per-marble share links (URL + social preview). Needs auth + moderation;
-      to be decided later.
+- [x] Shared gallery (publish, browse, and delete your own via Firebase)
+- [ ] Community gallery — profiles, likes / most-loved sort, and per-marble
+      share links (URL + social preview). Needs moderation; to be decided later.

@@ -243,13 +243,26 @@ button:focus:not(:focus-visible){outline:none}
   gap:12px;padding:20px;overflow-y:auto;
 }
 .gallery-item{
-  appearance:none;padding:0;cursor:zoom-in;
-  display:block;aspect-ratio:1;border-radius:8px;overflow:hidden;
+  position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;
   border:1px solid var(--line);background:var(--paper);
-  transition:transform .2s ease;
 }
-.gallery-item:hover{transform:scale(1.03)}
+.gallery-open{
+  appearance:none;padding:0;border:none;background:none;cursor:zoom-in;
+  display:block;width:100%;height:100%;transition:transform .2s ease;
+}
+.gallery-open:hover{transform:scale(1.03)}
 .gallery-item img{width:100%;height:100%;object-fit:cover;display:block}
+.gallery-del{
+  position:absolute;top:6px;right:6px;z-index:1;
+  appearance:none;border:none;cursor:pointer;
+  width:24px;height:24px;border-radius:50%;
+  background:rgba(26,26,31,.65);color:var(--paper);
+  font-size:16px;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .2s,background .2s;
+}
+.gallery-item:hover .gallery-del,.gallery-del:focus-visible{opacity:1}
+.gallery-del:hover{background:var(--shu)}
 
 /* ── lightbox: enlarged marble ───────── */
 .lightbox{

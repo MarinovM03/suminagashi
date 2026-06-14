@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchMarbles, galleryEnabled, type Marble } from '../gallery';
+import { fetchMarbles, deleteMarble, galleryEnabled, type Marble } from '../gallery';
 
 interface GalleryProps {
   onClose: () => void;
@@ -9,7 +9,7 @@ type State =
   | { kind: 'disabled' }
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
-  | { kind: 'ready'; marbles: Marble[] };
+  | { kind: 'ready'; marbles: Marble[]; uid: string };
 
 export default function Gallery({ onClose }: GalleryProps) {
   const [state, setState] = useState<State>(galleryEnabled ? { kind: 'loading' } : { kind: 'disabled' });
@@ -18,7 +18,7 @@ export default function Gallery({ onClose }: GalleryProps) {
   useEffect(() => {
     if (!galleryEnabled) return;
     fetchMarbles()
-      .then(marbles => setState({ kind: 'ready', marbles }))
+      .then(({ uid, marbles }) => setState({ kind: 'ready', marbles, uid }))
       .catch(e => setState({ kind: 'error', message: e?.message ?? 'Could not load the gallery' }));
   }, []);
 
@@ -31,6 +31,17 @@ export default function Gallery({ onClose }: GalleryProps) {
     addEventListener('keydown', onKey);
     return () => removeEventListener('keydown', onKey);
   }, [onClose, selected]);
+
+  const remove = async (m: Marble) => {
+    if (!window.confirm('Delete this marble? This cannot be undone.')) return;
+    try {
+      await deleteMarble(m.id);
+      setState(s => (s.kind === 'ready' ? { ...s, marbles: s.marbles.filter(x => x.id !== m.id) } : s));
+      setSelected(sel => (sel?.id === m.id ? null : sel));
+    } catch (e) {
+      setState({ kind: 'error', message: e instanceof Error ? e.message : 'Could not delete the marble' });
+    }
+  };
 
   return (
     <>
@@ -55,9 +66,14 @@ export default function Gallery({ onClose }: GalleryProps) {
           {state.kind === 'ready' && state.marbles.length > 0 && (
             <div className="gallery-grid">
               {state.marbles.map(m => (
-                <button key={m.id} className="gallery-item" title={m.palette} onClick={() => setSelected(m)}>
-                  <img src={m.url} alt={m.palette ? `${m.palette} marble` : 'marble'} loading="lazy" />
-                </button>
+                <div key={m.id} className="gallery-item">
+                  <button className="gallery-open" title={m.palette} onClick={() => setSelected(m)}>
+                    <img src={m.url} alt={m.palette ? `${m.palette} marble` : 'marble'} loading="lazy" />
+                  </button>
+                  {m.owner && m.owner === state.uid && (
+                    <button className="gallery-del" aria-label="Delete your marble" title="Delete" onClick={() => remove(m)}>×</button>
+                  )}
+                </div>
               ))}
             </div>
           )}
