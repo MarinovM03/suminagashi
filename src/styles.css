@@ -1,3 +1,29 @@
+/* Self-hosted Shippori Mincho (extracted from @fontsource/shippori-mincho,
+   SIL OFL). Only the slices this page renders: latin UI text at 500, and the
+   three title glyphs 墨 (U+58A8) 流 (U+6D41) し (U+3057) at 700 — each slice
+   keeps its original unicode-range, so nothing else ever downloads. If new
+   Japanese text is added, extract its covering slices from that package's
+   700.css the same way. */
+@font-face{
+  font-family:"Shippori Mincho";font-style:normal;font-weight:500;font-display:swap;
+  src:url(/fonts/shippori-mincho-latin-500-normal.woff2) format("woff2");
+}
+@font-face{
+  font-family:"Shippori Mincho";font-style:normal;font-weight:700;font-display:swap;
+  src:url(/fonts/shippori-mincho-80-700-normal.woff2) format("woff2");
+  unicode-range:U+2463,U+25a1,U+4ef0,U+5076,U+5098,U+51fd,U+5302,U+5448,U+54c9,U+570b,U+583a,U+5893,U+58a8,U+58ee,U+5949,U+5bdb,U+5f26,U+5f81,U+6052,U+6170,U+61c7,U+631f,U+635c,U+664b,U+69fb,U+6f01,U+7070,U+722a,U+745e,U+755c,U+76c6,U+78c1,U+79e4,U+7bb8,U+7d0b,U+81a8,U+82d7,U+8b5c,U+8f14,U+8fb1,U+8fbb,U+9283,U+9298,U+9a30,U+ff03,U+ff50,U+ff59,U+ff7b,U+ff8e-ff8f;
+}
+@font-face{
+  font-family:"Shippori Mincho";font-style:normal;font-weight:700;font-display:swap;
+  src:url(/fonts/shippori-mincho-111-700-normal.woff2) format("woff2");
+  unicode-range:U+2b,U+d7,U+300e-300f,U+4e07,U+4e8c,U+512a,U+5149,U+518d,U+5236,U+52b9,U+52d9,U+5468,U+578b,U+57fa,U+5b8c,U+5ba2,U+5c02,U+5de5,U+5f37,U+5f62,U+623b,U+63d0,U+652f,U+672a,U+6848,U+6d41,U+7136,U+7537,U+754c,U+76f4,U+79c1,U+7ba1,U+7d44,U+7d4c,U+7dcf,U+7dda,U+7de8,U+82b1,U+897f,U+8ca9,U+8cfc,U+904e,U+9664,U+982d,U+9858,U+98a8,U+9a13,U+ff13,U+ff5c;
+}
+@font-face{
+  font-family:"Shippori Mincho";font-style:normal;font-weight:700;font-display:swap;
+  src:url(/fonts/shippori-mincho-119-700-normal.woff2) format("woff2");
+  unicode-range:U+20,U+2027,U+3001-3002,U+3041-307f,U+3081-308f,U+3091-3093,U+3099-309a,U+309d-309e,U+30a1-30e1,U+30e3-30ed,U+30ef-30f0,U+30f2-30f4,U+30fb-30fe,U+ff0c,U+ff0e;
+}
+
 :root{
   --paper:#efeae0;
   --sumi:#1a1a1f;
@@ -209,7 +235,8 @@ button:focus:not(:focus-visible){outline:none}
 
 /* ── toast ───────────────────────────── */
 .toast{
-  position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:8;
+  /* z above the lightbox (9) so copy-link feedback stays visible */
+  position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:10;
   padding:9px 18px;border-radius:999px;
   background:rgba(26,26,31,.9);color:var(--paper);
   font-size:12px;letter-spacing:.08em;white-space:nowrap;
@@ -237,11 +264,25 @@ button:focus:not(:focus-visible){outline:none}
   font-size:13px;letter-spacing:.22em;color:rgba(26,26,31,.78);
 }
 .gallery-msg{padding:40px 24px;text-align:center;color:rgba(26,26,31,.6);font-size:13px;line-height:1.7}
+.gallery-alert{
+  padding:10px 20px;border-bottom:1px solid var(--line);
+  color:var(--shu);font-size:12px;letter-spacing:.04em;
+}
 .gallery-msg code{font-family:ui-monospace,monospace;font-size:12px;background:rgba(26,26,31,.07);padding:1px 5px;border-radius:4px}
+.gallery-scroll{overflow-y:auto;display:flex;flex-direction:column}
 .gallery-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
-  gap:12px;padding:20px;overflow-y:auto;
+  gap:12px;padding:20px;
 }
+.gallery-more{
+  appearance:none;background:none;cursor:pointer;
+  border:1px solid var(--line);border-radius:999px;
+  font-family:inherit;font-size:11px;letter-spacing:.16em;
+  color:rgba(26,26,31,.7);padding:8px 0;margin:0 20px 20px;
+  transition:background .2s,color .2s;
+}
+.gallery-more:hover{background:rgba(26,26,31,.06);color:var(--sumi)}
+.gallery-more:disabled{opacity:.5;cursor:default}
 .gallery-item{
   position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;
   border:1px solid var(--line);background:var(--paper);
@@ -287,6 +328,15 @@ button:focus:not(:focus-visible){outline:none}
   color:var(--paper);font-size:30px;line-height:1;opacity:.8;transition:opacity .2s;
 }
 .lightbox-x:hover{opacity:1}
+.lightbox-copy{
+  position:fixed;top:20px;left:24px;
+  appearance:none;cursor:pointer;
+  background:rgba(239,234,224,.12);border:1px solid rgba(239,234,224,.35);
+  border-radius:999px;color:var(--paper);
+  font-family:inherit;font-size:11px;letter-spacing:.14em;
+  padding:7px 16px;opacity:.85;transition:opacity .2s,background .2s;
+}
+.lightbox-copy:hover{opacity:1;background:rgba(239,234,224,.2)}
 
 /* ── publish: record badge + frame picker ─ */
 .rec-badge{
