@@ -16,6 +16,8 @@ export function useFluidSim(stageRef: RefObject<HTMLDivElement>, { tool, inkMode
   const simRef = useRef<FluidSim | null>(null);
   const [webglError, setWebglError] = useState(false);
   const [hintGone, setHintGone] = useState(false);
+  const [recordingSupported, setRecordingSupported] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
 
   useEffect(() => {
     let sim: FluidSim;
@@ -26,6 +28,8 @@ export function useFluidSim(stageRef: RefObject<HTMLDivElement>, { tool, inkMode
       return;
     }
     sim.onInteract = () => setHintGone(true);
+    sim.onUndoAvailable = setCanUndo;
+    setRecordingSupported(sim.recordingSupported);
     simRef.current = sim;
     const timer = setTimeout(() => setHintGone(true), 9000);
     return () => {
@@ -40,5 +44,5 @@ export function useFluidSim(stageRef: RefObject<HTMLDivElement>, { tool, inkMode
   useEffect(() => { simRef.current?.setAutoFlow(autoFlow); }, [autoFlow]);
   useEffect(() => { simRef.current?.setPalette(palette.colors.map(c => c.hex)); }, [palette]);
 
-  return { simRef, webglError, hintGone };
+  return { simRef, webglError, hintGone, recordingSupported, canUndo };
 }

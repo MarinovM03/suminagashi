@@ -146,7 +146,6 @@ export const DISPLAY = /* glsl */ `
   uniform sampler2D uDye;
   uniform vec2 uTexel;
   uniform vec3 uPaper;
-  uniform float uTime;
 
   float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
   float noise(vec2 p){
