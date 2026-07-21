@@ -16,7 +16,6 @@ interface DoubleFBO {
   texel: THREE.Vector2;
   swap(): void;
   resize(w: number, h: number): void;
-  /** Resize but rescale the current contents into the new targets. */
   resizePreserving(w: number, h: number, copy: (src: THREE.Texture, dst: THREE.WebGLRenderTarget) => void): void;
   dispose(): void;
 }
@@ -45,7 +44,6 @@ function pickVideoMime(): string | null {
 
 export class FluidSim {
   onInteract?: () => void;
-  /** Fires when the one-level undo snapshot becomes available / is consumed. */
   onUndoAvailable?: (available: boolean) => void;
 
   private tool: Tool = 'brush';
@@ -64,7 +62,6 @@ export class FluidSim {
   private pressure: DoubleFBO;
   private curlRT: THREE.WebGLRenderTarget;
   private divergeRT: THREE.WebGLRenderTarget;
-  // One-level undo: dye + velocity snapshots taken at the start of an action.
   private undoDye: THREE.WebGLRenderTarget | null = null;
   private undoVel: THREE.WebGLRenderTarget | null = null;
   private hasUndo = false;
@@ -83,9 +80,6 @@ export class FluidSim {
   private inks: THREE.Color[];
   private reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // One entry per active pointer: every finger paints its own stroke with its
-  // own cycle color and ring timer; the mouse keeps an entry with down=false
-  // so hovering still stirs the water.
   private pointers = new Map<number, ActivePointer>();
   private lastInteraction = 0;
   private washing = 0;
@@ -146,8 +140,6 @@ export class FluidSim {
     this.rafId = requestAnimationFrame(this.frame);
   }
 
-  /* ── public API ── */
-
   setTool(tool: Tool) { this.tool = tool; }
   setInkMode(mode: InkMode) { this.inkMode = mode; }
   setAutoFlow(on: boolean) { this.autoFlow = on; }
@@ -156,7 +148,6 @@ export class FluidSim {
     this.washing = 1.6;
   }
 
-  /** Restore the state captured at the start of the last action (one level). */
   undo() {
     if (!this.hasUndo || !this.undoDye || !this.undoVel) return;
     this.copyInto(this.undoDye.texture, this.dye.write);
@@ -187,8 +178,6 @@ export class FluidSim {
     return pickVideoMime() !== null && typeof this.renderer.domElement.captureStream === 'function';
   }
 
-  // Captures the live canvas to a WebM via MediaRecorder while the user keeps
-  // drawing, so the exported video shows the ink actually flowing.
   startRecording() {
     if (this.mediaRecorder) return;
     const mime = pickVideoMime();
@@ -226,9 +215,7 @@ export class FluidSim {
     a.click();
   }
 
-  // Records a short clip of downscaled JPEG frames so the user can pick the
-  // best-looking moment to publish. Frames are grabbed inside the render loop
-  // (see frame()), where the canvas buffer is valid in the same task.
+  // Frames are grabbed inside frame(), where the canvas buffer is still valid.
   recordClip(durationMs = 3000, fps = 10): Promise<string[]> {
     const interval = 1000 / fps;
     return new Promise(resolve => {
@@ -243,8 +230,7 @@ export class FluidSim {
     });
   }
 
-  // Each frame is small enough to live inside a single Firestore document
-  // (1 MiB limit), so the gallery needs no Cloud Storage.
+  // Small enough for one Firestore document (1 MiB limit) — no Cloud Storage.
   private snapshot(maxWidth = 1000, quality = 0.82): string {
     const src = this.renderer.domElement;
     const scale = Math.min(1, maxWidth / src.width);
@@ -295,8 +281,6 @@ export class FluidSim {
     canvas.remove();
   }
 
-  /* ── setup helpers ── */
-
   private prog(frag: string, uniforms: Record<string, THREE.IUniform>) {
     return new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: frag, uniforms, depthTest: false, depthWrite: false });
   }
@@ -327,8 +311,7 @@ export class FluidSim {
         read.setSize(nw, nh); write.setSize(nw, nh);
         texel.set(1 / nw, 1 / nh);
       },
-      // setSize wipes a target's contents, so preserving means: allocate new
-      // targets, blit the old picture across, then drop the old ones.
+      // setSize wipes contents: allocate fresh targets, blit the old picture across.
       resizePreserving(nw: number, nh: number, copy: (src: THREE.Texture, dst: THREE.WebGLRenderTarget) => void) {
         const newRead = makeRT(nw, nh);
         const newWrite = makeRT(nw, nh);
@@ -358,9 +341,7 @@ export class FluidSim {
     this.blit(this.clearMat, dst);
   }
 
-  // Snapshot dye + velocity so the action about to start can be undone.
-  // Auto-flow drops deliberately don't snapshot — they'd overwrite the
-  // user's undo point with ambient noise.
+  // Auto-flow drops never snapshot — they'd overwrite the user's undo point.
   private saveUndo() {
     const S = this.simSizes();
     if (!this.undoDye) this.undoDye = this.makeRT(S.dw, S.dh);
@@ -371,8 +352,6 @@ export class FluidSim {
     this.onUndoAvailable?.(true);
   }
 
-  /* ── ink ── */
-
   private currentInkColor(advance: boolean) {
     if (this.inkMode === 'cycle') {
       const c = this.inks[this.inkCycleIdx % this.inks.length];
@@ -381,8 +360,6 @@ export class FluidSim {
     }
     return this.inks[this.inkMode] ?? this.inks[0];
   }
-
-  /* ── splats ── */
 
   private splatVelocity(x: number, y: number, fx: number, fy: number, radiusMul = 1) {
     const u = this.splatMat.uniforms;
@@ -424,11 +401,7 @@ export class FluidSim {
     this.splatVelocity(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 1.2);
   }
 
-  /* ── ring tool ── */
-
-  // Alternates ink drops and clear "water" pushes at one point; each push
-  // drives the previous drops outward into concentric rings. Phase and
-  // position are per-pointer so several fingers can grow rings at once.
+  // Alternating ink drops and water pushes grow concentric rings.
   private ringTick(pt: ActivePointer) {
     if (pt.ringPhase % 2 === 0) {
       const c = this.currentInkColor(true);
@@ -439,8 +412,6 @@ export class FluidSim {
     }
     pt.ringPhase++;
   }
-
-  /* ── comb tool ── */
 
   private comb(x: number, y: number, dx: number, dy: number) {
     const aspect = innerWidth / innerHeight;
@@ -456,17 +427,13 @@ export class FluidSim {
     }
   }
 
-  /* ── pointer ── */
-
   private toUV(e: PointerEvent) {
     const r = this.renderer.domElement.getBoundingClientRect();
     return { x: (e.clientX - r.left) / r.width, y: 1 - (e.clientY - r.top) / r.height };
   }
 
   private onPointerDown = (e: PointerEvent) => {
-    // The undo snapshot marks the start of the whole gesture: only the first
-    // finger down takes it, so lifting one finger of a two-finger stroke
-    // doesn't overwrite the restore point mid-gesture.
+    // Only the first finger down snapshots undo — the whole gesture is one action.
     const gestureStart = ![...this.pointers.values()].some(p => p.down);
     if (gestureStart) this.saveUndo();
 
@@ -497,8 +464,7 @@ export class FluidSim {
     const p = this.toUV(e);
     let pt = this.pointers.get(e.pointerId);
     if (!pt) {
-      // A move without a down is the mouse (or pen) hovering — it stirs the
-      // water without depositing ink, so it still gets an entry.
+      // move without a down = mouse/pen hover
       pt = {
         down: false, moved: false,
         x: p.x, y: p.y, px: p.x, py: p.y,
@@ -525,9 +491,7 @@ export class FluidSim {
   };
 
   private onKeyDown = (e: KeyboardEvent) => {
-    // Shortcuts must stay away from focused controls (Space has to keep
-    // activating buttons and sliders for keyboard users) and must not fire
-    // behind a modal overlay like the gallery or publish dialog.
+    // Never fire on focused controls or behind modals — Space must keep activating buttons.
     const t = e.target instanceof HTMLElement ? e.target : null;
     if (t?.closest('button, input, select, textarea, [contenteditable], [tabindex]')) return;
     if (document.querySelector('[aria-modal="true"]')) return;
@@ -561,12 +525,10 @@ export class FluidSim {
         this.comb(pt.x, pt.y, dx, dy);
         continue;
       }
-      // dragging pulls ink along (brush only); hovering just stirs the water
       const hoverBoost = pt.down ? 1 : 1.7;
       this.splatVelocity(pt.x, pt.y, fx * hoverBoost, fy * hoverBoost, pt.down ? 2.0 : 2.6);
       if (pt.down && this.tool === 'brush') {
-        // ink feeds in proportion to brush speed; a near-still brush adds
-        // almost none, so slow strokes stay watery instead of saturating
+        // ink feeds with stroke speed so slow strokes stay watery, not saturated
         const speed = Math.min(Math.hypot(dx, dy) * 26, 1);
         if (speed > 0.04) {
           this.splatDye(pt.x, pt.y, inkAbsorption(pt.color, speed * this.params.flow), 1.5);
@@ -574,8 +536,6 @@ export class FluidSim {
       }
     }
   }
-
-  /* ── auto flow ── */
 
   private autoUpdate(now: number, dt: number) {
     if (!this.autoFlow) return;
@@ -588,7 +548,6 @@ export class FluidSim {
       const c = this.inks[Math.floor(Math.random() * this.inks.length)];
       this.dropInk(x, y, c, 0.8 + Math.random() * 0.7);
 
-      // occasional second color nearby sets off visible mixing
       if (Math.random() < 0.3) {
         const c2 = this.inks[Math.floor(Math.random() * this.inks.length)];
         const x2 = Math.min(Math.max(x + (Math.random() - 0.5) * 0.16, 0.08), 0.92);
@@ -609,8 +568,6 @@ export class FluidSim {
       this.nextStir = 700 + Math.random() * 900;
     }
   }
-
-  /* ── solver step ── */
 
   private step(dt: number) {
     const vel = this.velocity;
@@ -673,8 +630,6 @@ export class FluidSim {
     if (this.washing > 0) this.washing -= dt;
   }
 
-  /* ── main loop ── */
-
   private frame = (now: number) => {
     if (this.disposed) return;
     this.rafId = requestAnimationFrame(this.frame);
@@ -717,8 +672,6 @@ export class FluidSim {
     }
   };
 
-  /* ── opening drops ── */
-
   private seed() {
     const n = this.inks.length;
     this.dropInk(0.38, 0.58, this.inks[0], 0.75);
@@ -728,24 +681,20 @@ export class FluidSim {
   }
 
   private onResize = () => {
-    // Debounced: window drags and mobile URL-bar/orientation changes fire
-    // bursts of resize events, and the CSS-stretched canvas bridges the gap.
+    // Debounced — drags and mobile URL-bar changes fire bursts; CSS stretch bridges the gap.
     clearTimeout(this.resizeTimer);
     this.resizeTimer = window.setTimeout(() => {
       if (this.disposed) return;
       this.renderer.setSize(innerWidth, innerHeight);
       const S = this.simSizes();
       const copy = (src: THREE.Texture, dst: THREE.WebGLRenderTarget) => this.copyInto(src, dst);
-      // The marble survives the resize: dye and velocity are rescaled into
-      // the new targets. Pressure is transient warm-start data and curl /
-      // divergence are recomputed every frame, so those just resize.
+      // dye + velocity survive the resize; pressure/curl/divergence are transient
       this.velocity.resizePreserving(S.sw, S.sh, copy);
       this.dye.resizePreserving(S.dw, S.dh, copy);
       this.pressure.resize(S.sw, S.sh);
       this.curlRT.setSize(S.sw, S.sh);
       this.divergeRT.setSize(S.sw, S.sh);
-      // Undo snapshots are at the old resolution; drop them rather than
-      // restore a stretched marble.
+      // undo snapshots are at the old resolution — drop them
       this.undoDye?.dispose(); this.undoDye = null;
       this.undoVel?.dispose(); this.undoVel = null;
       this.hasUndo = false;

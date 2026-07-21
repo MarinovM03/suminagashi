@@ -3,9 +3,8 @@ import { fetchMarbles, fetchMarble, fetchFullImage, deleteMarble, galleryEnabled
 
 interface GalleryProps {
   onClose: () => void;
-  /** Marble id from a ?m= share link — opens its lightbox immediately. */
+  /** From a ?m= share link — opens that marble's lightbox immediately. */
   initialId?: string;
-  /** Surface a transient message in the app's toast. */
   notify?: (message: string) => void;
 }
 
@@ -20,8 +19,6 @@ export default function Gallery({ onClose, initialId, notify }: GalleryProps) {
   const [selected, setSelected] = useState<Marble | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  // Full-size images arrive lazily (they live in a subdocument); cache them
-  // per marble id so re-opening the lightbox is instant.
   const [fulls, setFulls] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -31,8 +28,6 @@ export default function Gallery({ onClose, initialId, notify }: GalleryProps) {
       .catch(e => setState({ kind: 'error', message: e?.message ?? 'Could not load the gallery' }));
   }, []);
 
-  // A shared link points at one marble, which may not be in the first page —
-  // fetch it directly and open its lightbox.
   useEffect(() => {
     if (!galleryEnabled || !initialId) return;
     fetchMarble(initialId)
@@ -50,7 +45,6 @@ export default function Gallery({ onClose, initialId, notify }: GalleryProps) {
     return () => removeEventListener('keydown', onKey);
   }, [onClose, selected]);
 
-  // The grid holds thumbnails; opening the lightbox fetches the real image.
   useEffect(() => {
     if (!selected || selected.full || fulls[selected.id]) return;
     let stale = false;
@@ -75,8 +69,6 @@ export default function Gallery({ onClose, initialId, notify }: GalleryProps) {
     }
   };
 
-  // A failed delete must not tear down the loaded grid — it surfaces as a
-  // transient alert inside the dialog instead.
   const remove = async (m: Marble) => {
     if (!window.confirm('Delete this marble? This cannot be undone.')) return;
     try {

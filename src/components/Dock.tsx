@@ -19,9 +19,7 @@ interface DockProps {
   autoFlow: boolean;
   tuneOpen: boolean;
   recording: boolean;
-  /** MediaRecorder + captureStream available — hides Record when false. */
   canRecord: boolean;
-  /** An undo snapshot exists — enables the Undo button. */
   canUndo: boolean;
   onPalette: () => void;
   onInk: (mode: InkMode) => void;

@@ -5,13 +5,9 @@ export default defineConfig({
   plugins: [react()],
   server: { port: 5173 },
   build: {
-    // Never inline assets as data URIs: the unicode-range font chunks must
-    // stay separate files, or the small ones get baked into the
-    // render-blocking CSS and every visitor downloads all of them at once.
+    // fonts must stay separate files — inlined data-URIs bloat the render-blocking CSS
     assetsInlineLimit: 0,
-    // Split Three.js and React into their own long-cached chunks so app
-    // changes don't force a re-download of them, and the app chunk stays small.
-    // (advancedChunks is Rolldown's replacement for manualChunks in Vite 8+.)
+    // long-cached vendor chunks (advancedChunks = Rolldown's manualChunks)
     rollupOptions: {
       output: {
         advancedChunks: {

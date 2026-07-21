@@ -9,9 +9,6 @@ interface FluidSimInputs {
   palette: Palette;
 }
 
-// Owns the FluidSim instance: creation, disposal, the one-shot intro hint, and
-// keeping the engine in sync with the reactive controls. Returns the sim ref
-// for imperative actions (wash, save, record, publish) plus lifecycle state.
 export function useFluidSim(stageRef: RefObject<HTMLDivElement>, { tool, inkMode, autoFlow, palette }: FluidSimInputs) {
   const simRef = useRef<FluidSim | null>(null);
   const [webglError, setWebglError] = useState(false);

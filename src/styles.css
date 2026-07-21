@@ -1,9 +1,6 @@
-/* Self-hosted Shippori Mincho (extracted from @fontsource/shippori-mincho,
-   SIL OFL). Only the slices this page renders: latin UI text at 500, and the
-   three title glyphs 墨 (U+58A8) 流 (U+6D41) し (U+3057) at 700 — each slice
-   keeps its original unicode-range, so nothing else ever downloads. If new
-   Japanese text is added, extract its covering slices from that package's
-   700.css the same way. */
+/* Self-hosted Shippori Mincho slices (from @fontsource/shippori-mincho, SIL OFL):
+   latin at 500 plus the three title glyphs 墨流し at 700. If new Japanese text
+   is added, extract its covering slices from that package's 700.css. */
 @font-face{
   font-family:"Shippori Mincho";font-style:normal;font-weight:500;font-display:swap;
   src:url(/fonts/shippori-mincho-latin-500-normal.woff2) format("woff2");
@@ -37,7 +34,6 @@ html,body,#root{height:100%;overflow:hidden;background:var(--paper)}
 body{font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;color:var(--sumi)}
 canvas{display:block;width:100vw;height:100vh;cursor:crosshair;touch-action:none}
 
-/* keyboard focus rings (only for keyboard users, not mouse clicks) */
 button:focus-visible,
 .tune-label:focus-visible,
 input[type="range"]:focus-visible{
@@ -146,8 +142,6 @@ button:focus:not(:focus-visible){outline:none}
 }
 .act:hover::after{transform:scaleX(1)}
 .act[aria-pressed="false"]{color:rgba(26,26,31,.5)}
-/* Tune toggles a panel rather than an on/off behaviour, so it stays
-   available-looking when closed and shows a persistent underline when open */
 .act[aria-expanded="true"]{color:var(--sumi)}
 .act[aria-expanded="true"]::after{transform:scaleX(1)}
 .act .dot{
@@ -235,7 +229,7 @@ button:focus:not(:focus-visible){outline:none}
 
 /* ── toast ───────────────────────────── */
 .toast{
-  /* z above the lightbox (9) so copy-link feedback stays visible */
+  /* z above the lightbox so copy-link feedback stays visible */
   position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:10;
   padding:9px 18px;border-radius:999px;
   background:rgba(26,26,31,.9);color:var(--paper);

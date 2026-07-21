@@ -31,8 +31,6 @@ export default function App() {
   // A fresh object each call so an identical repeated message still resets the timer.
   const flash = useCallback((text: string) => setStatus({ text }), []);
 
-  // H hides the chrome for clean screenshots and recordings; same guards as
-  // the engine shortcuts (leave focused controls and open modals alone).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'h' && e.key !== 'H') return;
@@ -102,8 +100,6 @@ export default function App() {
     }
   };
 
-  // Closing the gallery also strips a consumed ?m= link so a refresh
-  // returns to the plain canvas.
   const closeGallery = () => {
     setGalleryOpen(false);
     if (location.search) history.replaceState(null, '', location.pathname);

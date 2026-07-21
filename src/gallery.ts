@@ -11,17 +11,14 @@ const firebaseConfig = {
 
 export const galleryEnabled = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 
-/* Firestore always returns whole documents, so the gallery splits each marble
-   in two: a small thumbnail lives inline in `marbles/{id}` (what the grid
-   fetches), and the full-size image in the subdocument
-   `marbles/{id}/image/full`, fetched only when the lightbox opens. Documents
-   published before this split carry the full image inline in `image` — reads
-   treat that as both thumb and full. */
+/* Firestore returns whole documents, so each marble is split: a small thumb
+   inline in marbles/{id}, the full image in marbles/{id}/image/full (fetched
+   only by the lightbox). Pre-split docs carry the full image in `image`. */
 
 export interface Marble {
   id: string;
   thumb: string;
-  /** Full-size image if already known (old-schema docs); otherwise load via fetchFullImage. */
+  /** Known upfront only for old-schema docs; otherwise via fetchFullImage. */
   full: string | null;
   palette: string;
   owner: string;
@@ -31,7 +28,7 @@ export interface Marble {
 export interface MarblePage {
   uid: string;
   marbles: Marble[];
-  /** Opaque cursor for the next page; null when this was the last page. */
+  /** null on the last page */
   cursor: QueryDocumentSnapshot | null;
 }
 
@@ -41,8 +38,7 @@ let dbPromise: Promise<Firestore> | null = null;
 let uid: string | null = null;
 let signInFlight: Promise<string> | null = null;
 
-// App Check (optional): proves requests come from this app rather than a
-// script, which matters because the gallery collection is publicly writable.
+// App Check curbs scripted writes to the publicly writable gallery.
 const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
 
 async function getApp() {
@@ -73,9 +69,7 @@ async function getDb() {
   return dbPromise;
 }
 
-// An invisible per-browser identity (Firebase Anonymous Auth) so a marble can
-// be owned and only its owner can delete it. Retries on failure so enabling
-// Anonymous sign-in in the console takes effect without a reload.
+// Retries on failure so enabling Anonymous sign-in takes effect without a reload.
 async function getUid(): Promise<string> {
   if (uid) return uid;
   if (!signInFlight) {
@@ -90,8 +84,6 @@ async function getUid(): Promise<string> {
   return signInFlight;
 }
 
-// Grid tiles render at ~150px, so a 320px JPEG is plenty and ~10× lighter
-// than shipping the full image to every gallery visitor.
 export async function makeThumb(dataUrl: string, maxWidth = 320, quality = 0.7): Promise<string> {
   const img = new Image();
   await new Promise((res, rej) => {
@@ -119,8 +111,8 @@ export async function publishMarble(image: string, palette: string) {
   await batch.commit();
 }
 
-// Parent deletes don't cascade in Firestore, so the full-image subdocument is
-// deleted explicitly (a no-op for old-schema marbles that never had one).
+// Firestore deletes don't cascade — the subdocument goes explicitly
+// (a no-op for old-schema marbles that never had one).
 export async function deleteMarble(id: string) {
   const db = await getDb();
   await getUid();

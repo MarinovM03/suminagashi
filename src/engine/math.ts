@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 
-// Display color → absorbance vector: the denser the ink, the closer
-// paper × exp(-A) gets to the ink color (Beer-Lambert subtractive mixing).
+// Color → absorbance (Beer-Lambert): display composites paper × exp(-A).
 export function inkAbsorption(c: THREE.Color, strength: number): THREE.Vector3 {
   const e = 0.012;
   return new THREE.Vector3(
@@ -11,8 +10,7 @@ export function inkAbsorption(c: THREE.Color, strength: number): THREE.Vector3 {
   );
 }
 
-// Resolution of the velocity (sim) and dye fields for a given viewport. The
-// short edge of the velocity field is fixed; the dye field is capped at dyeRes.
+// Velocity short edge fixed at simRes; dye capped at dyeRes.
 export function computeSimSizes(w: number, h: number, simRes: number, dyeRes: number) {
   const aspect = w / h;
   const dye = Math.min(dyeRes, Math.max(w, h));

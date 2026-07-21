@@ -5,22 +5,13 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Public wall of published marbles. Anyone may browse; a signed-in
-    // (anonymous) browser may post as itself; only the owner may delete.
-    //
-    // Each marble is two documents: the listed doc carries a small inline
-    // thumbnail (what the grid fetches), and marbles/{id}/image/full carries
-    // the full-size image the lightbox loads on demand. Marbles published
-    // before this split hold the full image inline instead — reads are
-    // unaffected by rules, and their delete works because the subdocument
-    // delete below tolerates a missing doc.
+    // Public wall: anyone reads, anonymous-auth browsers post as themselves,
+    // only the owner deletes. Each marble = thumb doc + full-image subdoc;
+    // pre-split marbles hold the full image inline instead.
     match /marbles/{id} {
       allow read: if true;
 
-      // - thumb: a small JPEG data-URL (never an external URL, so viewers'
-      //   browsers fetch nothing remote)
-      // - owner: the poster's own uid
-      // - createdAt: the server's clock (no backdating or future-dating)
+      // thumb: JPEG data-URL only (never an external URL); createdAt: server clock.
       allow create: if request.auth != null
                     && request.resource.data.keys().hasOnly(['thumb', 'palette', 'owner', 'createdAt'])
                     && request.resource.data.owner == request.auth.uid
@@ -36,7 +27,6 @@ service cloud.firestore {
       allow delete: if request.auth != null
                     && resource.data.owner == request.auth.uid;
 
-      // Full-size image, small enough for one Firestore document (~1 MiB).
       match /image/{doc} {
         allow read: if true;
 
@@ -49,8 +39,7 @@ service cloud.firestore {
 
         allow update: if false;
 
-        // resource == null: deleting a marble batch-deletes this subdocument
-        // even for old-schema marbles that never had one.
+        // resource == null lets old-schema marbles (no subdoc) batch-delete cleanly
         allow delete: if request.auth != null
                       && (resource == null || resource.data.owner == request.auth.uid);
       }
