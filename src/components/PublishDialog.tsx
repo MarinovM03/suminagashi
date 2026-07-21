@@ -37,7 +37,7 @@ export default function PublishDialog({ clip, onPublish, onClose }: PublishDialo
 
   return (
     <div className="publish-backdrop" onClick={() => !publishing && onClose()}>
-      <div className="publish" role="dialog" aria-label="Publish to gallery" onClick={e => e.stopPropagation()}>
+      <div className="publish" role="dialog" aria-modal="true" aria-label="Publish to gallery" onClick={e => e.stopPropagation()}>
         <div className="gallery-head">
           <span>Pick your moment</span>
           <button className="tune-x" aria-label="Close" disabled={publishing} onClick={onClose}>×</button>

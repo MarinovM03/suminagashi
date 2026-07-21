@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEFAULT_PARAMS, PALETTES, type InkMode, type TuneParams, type Tool } from './engine/config';
 import { galleryEnabled, publishMarble } from './gallery';
 import { useFluidSim } from './useFluidSim';
@@ -15,18 +15,37 @@ export default function App() {
   const [autoFlow, setAutoFlow] = useState(false);
   const [params, setParams] = useState<TuneParams>({ ...DEFAULT_PARAMS });
   const [tuneOpen, setTuneOpen] = useState(false);
-  const [galleryOpen, setGalleryOpen] = useState(false);
+  // ?m=<id> share links open the gallery straight onto that marble.
+  const [deepLinkId] = useState(() => new URLSearchParams(location.search).get('m'));
+  const [galleryOpen, setGalleryOpen] = useState(() => Boolean(deepLinkId) && galleryEnabled);
   const [publishOpen, setPublishOpen] = useState(false);
   const [clip, setClip] = useState<string[] | null>(null);
   const [status, setStatus] = useState<{ text: string } | null>(null);
   const [recording, setRecording] = useState(false);
   const [recordSecs, setRecordSecs] = useState(0);
+  const [uiHidden, setUiHidden] = useState(false);
   const palette = PALETTES[paletteIdx];
 
-  const { simRef, webglError, hintGone } = useFluidSim(stageRef, { tool, inkMode, autoFlow, palette });
+  const { simRef, webglError, hintGone, recordingSupported, canUndo } = useFluidSim(stageRef, { tool, inkMode, autoFlow, palette });
 
   // A fresh object each call so an identical repeated message still resets the timer.
-  const flash = (text: string) => setStatus({ text });
+  const flash = useCallback((text: string) => setStatus({ text }), []);
+
+  // H hides the chrome for clean screenshots and recordings; same guards as
+  // the engine shortcuts (leave focused controls and open modals alone).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'h' && e.key !== 'H') return;
+      const t = e.target instanceof HTMLElement ? e.target : null;
+      if (t?.closest('button, input, select, textarea, [contenteditable], [tabindex]')) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      const next = !uiHidden;
+      setUiHidden(next);
+      if (next) flash('Controls hidden — press H to show them');
+    };
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  }, [uiHidden, flash]);
 
   const cyclePalette = () => {
     setPaletteIdx(i => (i + 1) % PALETTES.length);
@@ -83,6 +102,13 @@ export default function App() {
     }
   };
 
+  // Closing the gallery also strips a consumed ?m= link so a refresh
+  // returns to the plain canvas.
+  const closeGallery = () => {
+    setGalleryOpen(false);
+    if (location.search) history.replaceState(null, '', location.pathname);
+  };
+
   useEffect(() => {
     if (!status) return;
     const t = setTimeout(() => setStatus(null), 2800);
@@ -109,10 +135,12 @@ export default function App() {
     <>
       <div className="stage" ref={stageRef} />
 
-      <div className="title">
-        <h1 aria-label="Suminagashi" lang="ja">墨流し</h1>
-        <div className="sub">SUMINAGASHI — INK DISSOLUTION</div>
-      </div>
+      {!uiHidden && (
+        <div className="title">
+          <h1 aria-label="Suminagashi" lang="ja">墨流し</h1>
+          <div className="sub">SUMINAGASHI — INK DISSOLUTION</div>
+        </div>
+      )}
 
       {webglError ? (
         <div className="webgl-error" role="alert">
@@ -121,9 +149,9 @@ export default function App() {
         </div>
       ) : (
         <>
-          <div className={hintGone ? 'hint gone' : 'hint'}>TRACE THE SURFACE — LET THE INK FLOW</div>
+          {!uiHidden && <div className={hintGone ? 'hint gone' : 'hint'}>TRACE THE SURFACE — LET THE INK FLOW</div>}
 
-          {tuneOpen && (
+          {tuneOpen && !uiHidden && (
             <TunePanel
               params={params}
               onChange={updateParam}
@@ -144,26 +172,31 @@ export default function App() {
             <PublishDialog clip={clip} onPublish={publishImage} onClose={() => setPublishOpen(false)} />
           )}
 
-          {galleryOpen && <Gallery onClose={() => setGalleryOpen(false)} />}
+          {galleryOpen && <Gallery initialId={deepLinkId ?? undefined} notify={flash} onClose={closeGallery} />}
 
-          <Dock
-            palette={palette}
-            inkMode={inkMode}
-            tool={tool}
-            autoFlow={autoFlow}
-            tuneOpen={tuneOpen}
-            recording={recording}
-            onPalette={cyclePalette}
-            onInk={setInkMode}
-            onTool={setTool}
-            onAuto={() => setAutoFlow(v => !v)}
-            onTune={() => setTuneOpen(v => !v)}
-            onWash={() => simRef.current?.wash()}
-            onSave={() => simRef.current?.saveImage()}
-            onRecord={toggleRecord}
-            onPublish={startPublish}
-            onGallery={() => setGalleryOpen(true)}
-          />
+          {!uiHidden && (
+            <Dock
+              palette={palette}
+              inkMode={inkMode}
+              tool={tool}
+              autoFlow={autoFlow}
+              tuneOpen={tuneOpen}
+              recording={recording}
+              canRecord={recordingSupported}
+              canUndo={canUndo}
+              onPalette={cyclePalette}
+              onInk={setInkMode}
+              onTool={setTool}
+              onAuto={() => setAutoFlow(v => !v)}
+              onTune={() => setTuneOpen(v => !v)}
+              onWash={() => simRef.current?.wash()}
+              onUndo={() => simRef.current?.undo()}
+              onSave={() => simRef.current?.saveImage()}
+              onRecord={toggleRecord}
+              onPublish={startPublish}
+              onGallery={() => setGalleryOpen(true)}
+            />
+          )}
         </>
       )}
     </>

@@ -19,19 +19,24 @@ interface DockProps {
   autoFlow: boolean;
   tuneOpen: boolean;
   recording: boolean;
+  /** MediaRecorder + captureStream available — hides Record when false. */
+  canRecord: boolean;
+  /** An undo snapshot exists — enables the Undo button. */
+  canUndo: boolean;
   onPalette: () => void;
   onInk: (mode: InkMode) => void;
   onTool: (tool: Tool) => void;
   onAuto: () => void;
   onTune: () => void;
   onWash: () => void;
+  onUndo: () => void;
   onSave: () => void;
   onRecord: () => void;
   onPublish: () => void;
   onGallery: () => void;
 }
 
-export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, recording, onPalette, onInk, onTool, onAuto, onTune, onWash, onSave, onRecord, onPublish, onGallery }: DockProps) {
+export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, recording, canRecord, canUndo, onPalette, onInk, onTool, onAuto, onTune, onWash, onUndo, onSave, onRecord, onPublish, onGallery }: DockProps) {
   const hexes = palette.colors.map(c => c.hex);
   const cycleBg = `conic-gradient(${[...hexes, hexes[0]].join(', ')})`;
 
@@ -90,16 +95,21 @@ export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, recor
       <button className="act" title="Gently wash the ink away" onClick={onWash}>
         Wash
       </button>
+      <button className="act" title="Undo the last stroke (Ctrl+Z)" disabled={!canUndo} onClick={onUndo}>
+        Undo
+      </button>
       <button className="act" title="Download the current marble as a PNG" onClick={onSave}>
         Save
       </button>
-      <button
-        className={recording ? 'act act-rec' : 'act'}
-        title={recording ? 'Stop and download the video' : 'Record a video of the flowing ink'}
-        onClick={onRecord}
-      >
-        {recording ? 'Stop' : 'Record'}
-      </button>
+      {canRecord && (
+        <button
+          className={recording ? 'act act-rec' : 'act'}
+          title={recording ? 'Stop and download the video' : 'Record a video of the flowing ink'}
+          onClick={onRecord}
+        >
+          {recording ? 'Stop' : 'Record'}
+        </button>
+      )}
       <button className="act" title="Pick a frame and publish it to the shared gallery" onClick={onPublish}>
         Publish
       </button>
