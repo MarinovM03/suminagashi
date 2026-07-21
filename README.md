@@ -26,7 +26,9 @@ let the auto-flow mode paint on its own.
 
 - **Brush** — drag to draw ink; the ink feeds in proportion to stroke speed,
   so it spreads on the water instead of saturating like a marker. Hovering
-  stirs the water without depositing ink.
+  stirs the water without depositing ink. On touch screens every finger
+  paints its own stroke in its own color — the rings and comb are
+  multi-touch too.
 - **Rings** — press and hold: alternating drops of ink and water push
   outward into concentric rings, the classic suminagashi technique
 - **Comb** — drag a row of tines through floating ink to feather it
@@ -44,12 +46,17 @@ inks on every touch:
 - **Sunset** — violet, crimson, burnt orange, amber
 - **Neon** — hot pink, cyan, lime, electric purple
 
-**Save** downloads the current marble as a PNG; **Record** captures a WebM
-video of the ink flowing while you keep drawing (click again to stop, or it
-caps at 30 seconds).
+**Save** downloads the current marble as a PNG; **Record** captures a video
+of the ink flowing while you keep drawing — WebM, or MP4 on Safari (click
+again to stop, or it caps at 30 seconds).
+
+**Undo** (or `Ctrl+Z`) restores the marble to the moment before your last
+stroke, drop, or wash — one level, for rescuing a composition from a smear.
 
 **Keyboard:** `Space` drops ink at a random spot, `X` washes the surface,
-`S` saves the current marble as a PNG.
+`S` saves the current marble as a PNG, `Ctrl+Z` undoes the last action, and
+`H` hides the interface for clean screenshots and screen recordings (press
+`H` again to bring it back).
 
 ## Running locally
 
@@ -73,7 +80,9 @@ without it, everything else still works.
 best-looking frame before posting it, so you pick the moment rather than gamble
 on the timing. **Gallery** opens the public wall of everything shared, where you
 can delete marbles you posted yourself. It is backed by Cloud Firestore alone —
-a downscaled preview is stored inline in each document, so it stays on
+each marble is a small inline thumbnail in the listed document plus the full
+image in a subdocument fetched only when a marble is opened, so browsing stays
+light (the wall also paginates with **Load more**) and everything fits
 Firebase's free tier with no Cloud Storage and no custom server. Firebase loads
 lazily, so it never slows the initial canvas.
 
@@ -88,25 +97,29 @@ To enable it:
 3. Under **Authentication → Sign-in method**, enable **Anonymous**.
 4. Copy `.env.example` to `.env` and fill in the web config values
    (`storageBucket` is optional — only `apiKey` and `projectId` are required).
-5. Set Firestore rules so anyone can read, signed-in browsers can post as
-   themselves, and only the owner can delete:
+5. Deploy the Firestore security rules. The versioned copy lives in
+   [`firestore.rules`](firestore.rules):
 
+   ```bash
+   npx firebase-tools deploy --only firestore:rules
    ```
-   match /marbles/{id} {
-     allow read: if true;
-     allow create: if request.auth != null
-                   && request.resource.data.owner == request.auth.uid
-                   && request.resource.data.image is string
-                   && request.resource.data.image.size() < 1048487;
-     allow update: if false;
-     allow delete: if request.auth != null
-                   && resource.data.owner == request.auth.uid;
-   }
-   ```
+
+   (or paste the file's contents into **Firestore → Rules** in the console).
+   The rules let anyone read, let signed-in browsers post marbles as
+   themselves — JPEG data-URLs only, under ~1 MB, no extra fields, honest
+   server timestamp — and let only the owner delete.
+
+6. *(Recommended before a public launch)* Enable **App Check**: in the
+   console under **App Check → Apps**, register the web app with a
+   **reCAPTCHA v3** key and put the site key in `.env` as
+   `VITE_FIREBASE_APPCHECK_SITE_KEY`. Once the deployed site shows verified
+   traffic, turn on **Enforce** for Cloud Firestore. This curbs scripted
+   spam against the publicly writable gallery. (For local dev with
+   enforcement on, register a debug token under *App Check → Apps → Manage
+   debug tokens* — or just leave the key blank locally.)
 
 The Firebase web keys are not secret (they ship in any client bundle); access
-is governed entirely by these rules. For a high-traffic site, add Firebase
-App Check to further curb abuse.
+is governed entirely by the security rules plus App Check.
 
 ## Stack
 
