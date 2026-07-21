@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// Deploy with: npx firebase-tools deploy --only firestore:rules
+// (or paste into Firestore → Rules in the Firebase console).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public wall of published marbles. Anyone may browse; a signed-in
+    // (anonymous) browser may post as itself; only the owner may delete.
+    //
+    // Each marble is two documents: the listed doc carries a small inline
+    // thumbnail (what the grid fetches), and marbles/{id}/image/full carries
+    // the full-size image the lightbox loads on demand. Marbles published
+    // before this split hold the full image inline instead — reads are
+    // unaffected by rules, and their delete works because the subdocument
+    // delete below tolerates a missing doc.
+    match /marbles/{id} {
+      allow read: if true;
+
+      // - thumb: a small JPEG data-URL (never an external URL, so viewers'
+      //   browsers fetch nothing remote)
+      // - owner: the poster's own uid
+      // - createdAt: the server's clock (no backdating or future-dating)
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasOnly(['thumb', 'palette', 'owner', 'createdAt'])
+                    && request.resource.data.owner == request.auth.uid
+                    && request.resource.data.thumb is string
+                    && request.resource.data.thumb.size() < 150000
+                    && request.resource.data.thumb.matches('data:image/jpeg;base64,.*')
+                    && request.resource.data.palette is string
+                    && request.resource.data.palette.size() < 40
+                    && request.resource.data.createdAt == request.time;
+
+      allow update: if false;
+
+      allow delete: if request.auth != null
+                    && resource.data.owner == request.auth.uid;
+
+      // Full-size image, small enough for one Firestore document (~1 MiB).
+      match /image/{doc} {
+        allow read: if true;
+
+        allow create: if request.auth != null
+                      && request.resource.data.keys().hasOnly(['image', 'owner'])
+                      && request.resource.data.owner == request.auth.uid
+                      && request.resource.data.image is string
+                      && request.resource.data.image.size() < 1048487
+                      && request.resource.data.image.matches('data:image/jpeg;base64,.*');
+
+        allow update: if false;
+
+        // resource == null: deleting a marble batch-deletes this subdocument
+        // even for old-schema marbles that never had one.
+        allow delete: if request.auth != null
+                      && (resource == null || resource.data.owner == request.auth.uid);
+      }
+    }
+  }
+}
