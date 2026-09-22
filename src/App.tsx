@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEFAULT_PARAMS, PALETTES, type InkMode, type TuneParams, type Tool } from './engine/config';
-import { galleryEnabled, publishMarble } from './gallery';
 import { useFluidSim } from './useFluidSim';
 import Dock from './components/Dock';
 import TunePanel from './components/TunePanel';
-import Gallery from './components/Gallery';
-import PublishDialog from './components/PublishDialog';
 
 export default function App() {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -15,11 +12,6 @@ export default function App() {
   const [autoFlow, setAutoFlow] = useState(false);
   const [params, setParams] = useState<TuneParams>({ ...DEFAULT_PARAMS });
   const [tuneOpen, setTuneOpen] = useState(false);
-  // ?m=<id> share links open the gallery straight onto that marble.
-  const [deepLinkId] = useState(() => new URLSearchParams(location.search).get('m'));
-  const [galleryOpen, setGalleryOpen] = useState(() => Boolean(deepLinkId) && galleryEnabled);
-  const [publishOpen, setPublishOpen] = useState(false);
-  const [clip, setClip] = useState<string[] | null>(null);
   const [status, setStatus] = useState<{ text: string } | null>(null);
   const [recording, setRecording] = useState(false);
   const [recordSecs, setRecordSecs] = useState(0);
@@ -36,7 +28,6 @@ export default function App() {
       if (e.key !== 'h' && e.key !== 'H') return;
       const t = e.target instanceof HTMLElement ? e.target : null;
       if (t?.closest('button, input, select, textarea, [contenteditable], [tabindex]')) return;
-      if (document.querySelector('[aria-modal="true"]')) return;
       const next = !uiHidden;
       setUiHidden(next);
       if (next) flash('Controls hidden — press H to show them');
@@ -76,33 +67,6 @@ export default function App() {
     setParams({ ...DEFAULT_PARAMS });
     (Object.keys(DEFAULT_PARAMS) as (keyof TuneParams)[]).forEach(k =>
       simRef.current?.setParam(k, DEFAULT_PARAMS[k]));
-  };
-
-  const startPublish = async () => {
-    if (!galleryEnabled) {
-      flash('Connect Firebase to publish — see README');
-      return;
-    }
-    setClip(null);
-    setPublishOpen(true);
-    const frames = await simRef.current!.recordClip();
-    setClip(frames);
-  };
-
-  const publishImage = async (image: string) => {
-    try {
-      await publishMarble(image, palette.label);
-      flash('Published to the gallery');
-      return true;
-    } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not publish');
-      return false;
-    }
-  };
-
-  const closeGallery = () => {
-    setGalleryOpen(false);
-    if (location.search) history.replaceState(null, '', location.pathname);
   };
 
   useEffect(() => {
@@ -164,12 +128,6 @@ export default function App() {
             </div>
           )}
 
-          {publishOpen && (
-            <PublishDialog clip={clip} onPublish={publishImage} onClose={() => setPublishOpen(false)} />
-          )}
-
-          {galleryOpen && <Gallery initialId={deepLinkId ?? undefined} notify={flash} onClose={closeGallery} />}
-
           {!uiHidden && (
             <Dock
               palette={palette}
@@ -189,8 +147,6 @@ export default function App() {
               onUndo={() => simRef.current?.undo()}
               onSave={() => simRef.current?.saveImage()}
               onRecord={toggleRecord}
-              onPublish={startPublish}
-              onGallery={() => setGalleryOpen(true)}
             />
           )}
         </>

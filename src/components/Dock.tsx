@@ -30,11 +30,9 @@ interface DockProps {
   onUndo: () => void;
   onSave: () => void;
   onRecord: () => void;
-  onPublish: () => void;
-  onGallery: () => void;
 }
 
-export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, recording, canRecord, canUndo, onPalette, onInk, onTool, onAuto, onTune, onWash, onUndo, onSave, onRecord, onPublish, onGallery }: DockProps) {
+export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, recording, canRecord, canUndo, onPalette, onInk, onTool, onAuto, onTune, onWash, onUndo, onSave, onRecord }: DockProps) {
   const hexes = palette.colors.map(c => c.hex);
   const cycleBg = `conic-gradient(${[...hexes, hexes[0]].join(', ')})`;
 
@@ -108,12 +106,6 @@ export default function Dock({ palette, inkMode, tool, autoFlow, tuneOpen, recor
           {recording ? 'Stop' : 'Record'}
         </button>
       )}
-      <button className="act" title="Pick a frame and publish it to the shared gallery" onClick={onPublish}>
-        Publish
-      </button>
-      <button className="act" title="Browse the shared gallery" onClick={onGallery}>
-        Gallery
-      </button>
     </div>
   );
 }

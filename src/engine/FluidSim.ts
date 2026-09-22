@@ -83,7 +83,6 @@ export class FluidSim {
   private pointers = new Map<number, ActivePointer>();
   private lastInteraction = 0;
   private washing = 0;
-  private recording: { frames: string[]; remaining: number; interval: number; sinceLast: number; resolve: (frames: string[]) => void } | null = null;
   private mediaRecorder: MediaRecorder | null = null;
   private videoChunks: Blob[] = [];
   private nextDrop = 1200;
@@ -215,32 +214,6 @@ export class FluidSim {
     a.click();
   }
 
-  // Frames are grabbed inside frame(), where the canvas buffer is still valid.
-  recordClip(durationMs = 3000, fps = 10): Promise<string[]> {
-    const interval = 1000 / fps;
-    return new Promise(resolve => {
-      this.recording?.resolve(this.recording.frames);
-      this.recording = {
-        frames: [],
-        remaining: Math.max(1, Math.round(durationMs / interval)),
-        interval,
-        sinceLast: interval,
-        resolve,
-      };
-    });
-  }
-
-  // Small enough for one Firestore document (1 MiB limit) — no Cloud Storage.
-  private snapshot(maxWidth = 1000, quality = 0.82): string {
-    const src = this.renderer.domElement;
-    const scale = Math.min(1, maxWidth / src.width);
-    const off = document.createElement('canvas');
-    off.width = Math.round(src.width * scale);
-    off.height = Math.round(src.height * scale);
-    off.getContext('2d')!.drawImage(src, 0, 0, off.width, off.height);
-    return off.toDataURL('image/jpeg', quality);
-  }
-
   private drawDisplay() {
     const d = this.displayMat.uniforms;
     d.uDye.value = this.dye.read.texture;
@@ -250,8 +223,6 @@ export class FluidSim {
 
   dispose() {
     this.disposed = true;
-    this.recording?.resolve(this.recording.frames);
-    this.recording = null;
     if (this.mediaRecorder) {
       this.mediaRecorder.onstop = null;
       this.mediaRecorder.stop();
@@ -654,22 +625,7 @@ export class FluidSim {
     this.autoUpdate(now, dt);
     this.step(dt);
 
-    const d = this.displayMat.uniforms;
-    d.uDye.value = this.dye.read.texture;
-    d.uTexel.value.copy(this.dye.texel);
-    this.blit(this.displayMat, null);
-
-    if (this.recording) {
-      this.recording.sinceLast += dt * 1000;
-      if (this.recording.sinceLast >= this.recording.interval) {
-        this.recording.sinceLast = 0;
-        this.recording.frames.push(this.snapshot());
-        if (--this.recording.remaining <= 0) {
-          this.recording.resolve(this.recording.frames);
-          this.recording = null;
-        }
-      }
-    }
+    this.drawDisplay();
   };
 
   private seed() {

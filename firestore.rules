@@ -1,48 +1,16 @@
 rules_version = '2';
 
+// The shared gallery is shelved for now, so the database is fully locked:
+// no browser can read or write anything. The Firebase console and the Admin
+// SDK bypass these rules, so the data can still be managed from there.
+//
 // Deploy with: npx firebase-tools deploy --only firestore:rules
 // (or paste into Firestore → Rules in the Firebase console).
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Public wall: anyone reads, anonymous-auth browsers post as themselves,
-    // only the owner deletes. Each marble = thumb doc + full-image subdoc;
-    // pre-split marbles hold the full image inline instead.
-    match /marbles/{id} {
-      allow read: if true;
-
-      // thumb: JPEG data-URL only (never an external URL); createdAt: server clock.
-      allow create: if request.auth != null
-                    && request.resource.data.keys().hasOnly(['thumb', 'palette', 'owner', 'createdAt'])
-                    && request.resource.data.owner == request.auth.uid
-                    && request.resource.data.thumb is string
-                    && request.resource.data.thumb.size() < 150000
-                    && request.resource.data.thumb.matches('data:image/jpeg;base64,.*')
-                    && request.resource.data.palette is string
-                    && request.resource.data.palette.size() < 40
-                    && request.resource.data.createdAt == request.time;
-
-      allow update: if false;
-
-      allow delete: if request.auth != null
-                    && resource.data.owner == request.auth.uid;
-
-      match /image/{doc} {
-        allow read: if true;
-
-        allow create: if request.auth != null
-                      && request.resource.data.keys().hasOnly(['image', 'owner'])
-                      && request.resource.data.owner == request.auth.uid
-                      && request.resource.data.image is string
-                      && request.resource.data.image.size() < 1048487
-                      && request.resource.data.image.matches('data:image/jpeg;base64,.*');
-
-        allow update: if false;
-
-        // resource == null lets old-schema marbles (no subdoc) batch-delete cleanly
-        allow delete: if request.auth != null
-                      && (resource == null || resource.data.owner == request.auth.uid);
-      }
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

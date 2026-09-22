@@ -69,68 +69,22 @@ Build for production with `npm run build` (output in `dist/`).
 
 ## Deploying
 
-The app is a fully static front-end — no server required. `npm run build`
-produces a `dist/` folder you can host on Netlify, Vercel, GitHub Pages,
-Cloudflare Pages or Firebase Hosting. The shared gallery (below) is optional;
-without it, everything else still works.
+The app is a fully static front-end — no server, database or accounts.
+`npm run build` produces a `dist/` folder you can host on any static host
+(Cloudflare Pages, Netlify, Vercel, GitHub Pages…).
 
-## Shared gallery (optional)
-
-**Publish** records a short clip of the flowing ink and lets you scrub to the
-best-looking frame before posting it, so you pick the moment rather than gamble
-on the timing. **Gallery** opens the public wall of everything shared, where you
-can delete marbles you posted yourself. It is backed by Cloud Firestore alone —
-each marble is a small inline thumbnail in the listed document plus the full
-image in a subdocument fetched only when a marble is opened, so browsing stays
-light (the wall also paginates with **Load more**) and everything fits
-Firebase's free tier with no Cloud Storage and no custom server. Firebase loads
-lazily, so it never slows the initial canvas.
-
-Ownership uses **Anonymous Authentication**: each browser gets an invisible
-identity (no login screen), so only the poster can delete their own marble, and
-that ownership is enforced by the security rules — not just hidden in the UI.
-
-To enable it:
-
-1. Create a Firebase project and a **Web app** in the Firebase console.
-2. Enable **Cloud Firestore** (Storage is not needed).
-3. Under **Authentication → Sign-in method**, enable **Anonymous**.
-4. Copy `.env.example` to `.env` and fill in the web config values
-   (`storageBucket` is optional — only `apiKey` and `projectId` are required).
-5. Deploy the Firestore security rules. The versioned copy lives in
-   [`firestore.rules`](firestore.rules):
-
-   ```bash
-   npx firebase-tools deploy --only firestore:rules
-   ```
-
-   (or paste the file's contents into **Firestore → Rules** in the console).
-   The rules let anyone read, let signed-in browsers post marbles as
-   themselves — JPEG data-URLs only, under ~1 MB, no extra fields, honest
-   server timestamp — and let only the owner delete.
-
-6. *(Recommended before a public launch)* Enable **App Check**: in the
-   console under **App Check → Apps**, register the web app with a
-   **reCAPTCHA v3** key and put the site key in `.env` as
-   `VITE_FIREBASE_APPCHECK_SITE_KEY`. Once the deployed site shows verified
-   traffic, turn on **Enforce** for Cloud Firestore. This curbs scripted
-   spam against the publicly writable gallery. (For local dev with
-   enforcement on, register a debug token under *App Check → Apps → Manage
-   debug tokens* — or just leave the key blank locally.)
-
-The Firebase web keys are not secret (they ship in any client bundle); access
-is governed entirely by the security rules plus App Check.
+`firestore.rules` is a deny-all placeholder that keeps the (currently unused)
+Firebase project locked while the community gallery is shelved.
 
 ## Stack
 
-React 18 · TypeScript · Vite · Three.js · Firebase (optional)
+React 18 · TypeScript · Vite · Three.js
 
 ## Roadmap
 
 - [x] PNG export of the current marble
-- [x] Video capture of the flowing ink (WebM)
+- [x] Video capture of the flowing ink
 - [x] Switchable color palettes (traditional, ebru, sunset, neon)
 - [x] Physics control panel (ink flow, swirl, fade, force)
-- [x] Shared gallery (publish, browse, and delete your own via Firebase)
-- [ ] Community gallery — profiles, likes / most-loved sort, and per-marble
-      share links (URL + social preview). Needs moderation; to be decided later.
+- [ ] Community gallery with moderation — publish, browse and share marbles.
+      An earlier prototype lives in the git history and will be rebuilt.
