@@ -1,11 +1,8 @@
 rules_version = '2';
 
-// The shared gallery is shelved for now, so the database is fully locked:
-// no browser can read or write anything. The Firebase console and the Admin
-// SDK bypass these rules, so the data can still be managed from there.
-//
-// Deploy with: npx firebase-tools deploy --only firestore:rules
-// (or paste into Firestore → Rules in the Firebase console).
+// The gallery is shelved, so no browser can read or write anything.
+// The Firebase console bypasses these rules and can still manage the data.
+// Deploy: npx firebase-tools deploy --only firestore:rules
 
 service cloud.firestore {
   match /databases/{database}/documents {

@@ -5,9 +5,9 @@ export default defineConfig({
   plugins: [react()],
   server: { port: 5173 },
   build: {
-    // fonts must stay separate files — inlined data-URIs bloat the render-blocking CSS
+    // keep fonts as files: inlined data-URIs bloat the render-blocking CSS
     assetsInlineLimit: 0,
-    // long-cached vendor chunks (advancedChunks = Rolldown's manualChunks)
+    // vendor chunks stay cached across app releases
     rollupOptions: {
       output: {
         advancedChunks: {
@@ -20,4 +20,3 @@ export default defineConfig({
     },
   },
 });
-

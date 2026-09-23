@@ -2,7 +2,7 @@ node_modules/
 dist/
 *.local
 
-# local secrets / env (Firebase keys); .env.example is committed
+# local env files
 .env
 .env.*
 !.env.example

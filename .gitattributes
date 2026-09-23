@@ -1,8 +1,6 @@
-# Normalize line endings to LF in the repo (stops the GitHub Desktop
-# "LF will be replaced by CRLF" warning on Windows checkouts).
+# LF everywhere, so Windows checkouts don't warn about CRLF
 * text=auto eol=lf
 
-# Treat binary assets as binary so they're never line-ending-converted.
 *.png binary
 *.jpg binary
 *.jpeg binary
