@@ -6,9 +6,8 @@ import {
   DIVERGENCE, PRESSURE, GRADIENT_SUBTRACT, CLEAR, DISPLAY,
 } from './shaders';
 
-/* Stable Fluids solver (Jos Stam) on ping-pong half-float FBOs.
-   The dye field stores absorbance, not color: overlapping inks darken
-   like real pigment because display composites paper × exp(-A). */
+/* Stable Fluids (Jos Stam) on ping-pong half-float FBOs. The dye stores absorbance,
+   not color, so overlapping inks darken like pigment: display = paper × exp(-A). */
 
 interface DoubleFBO {
   read: THREE.WebGLRenderTarget;
@@ -20,9 +19,9 @@ interface DoubleFBO {
   dispose(): void;
 }
 
-const RING_INTERVAL = 0.28; // seconds
+const RING_INTERVAL = 0.28;
 const COMB_TINES = 9;
-const COMB_SPACING = 0.05;  // screen-height units
+const COMB_SPACING = 0.05;
 const MAX_RECORDING_MS = 30_000;
 
 interface ActivePointer {
@@ -36,7 +35,7 @@ interface ActivePointer {
   isMouse: boolean;
 }
 
-// MP4 first: phones and social apps accept it. Firefox falls back to WebM.
+// MP4 first: phones and social apps reject WebM.
 const VIDEO_MIME_CANDIDATES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
 function pickVideoMime(): string | null {
   if (typeof MediaRecorder === 'undefined') return null;
@@ -49,17 +48,14 @@ export class FluidSim {
   onInteract?: () => void;
   onUndoAvailable?: (available: boolean) => void;
   onRecordingChange?: (recording: boolean) => void;
-  /** Fires after each recording; null when no frames were captured. */
   onRecorded?: (video: Blob | null, ext: VideoExt) => void;
-  /** The GPU dropped and rebuilt the context; the canvas restarted blank. */
   onGraphicsReset?: () => void;
 
   private tool: Tool = 'brush';
   private inkMode: InkMode = 'cycle';
   private inkCycleIdx = 0;
   private autoFlow = false;
-  // Gentle auto drops until the first touch, so a fresh visit looks alive.
-  private attract = true;
+  private welcomeDrops = true;
   private params: TuneParams = { ...DEFAULT_PARAMS };
 
   private renderer: THREE.WebGLRenderer;
@@ -107,7 +103,6 @@ export class FluidSim {
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, depth: false, stencil: false });
-    // The solver needs float render targets; without them it would silently draw nothing.
     const ext = this.renderer.extensions;
     if (!ext.has('EXT_color_buffer_half_float') && !ext.has('EXT_color_buffer_float')) {
       this.renderer.dispose();
@@ -163,14 +158,14 @@ export class FluidSim {
   setInkMode(mode: InkMode) { this.inkMode = mode; }
 
   setAutoFlow(on: boolean) {
-    // Only a real toggle ends the attract drops — not the initial sync.
-    if (on !== this.autoFlow) this.attract = false;
+    // React syncs the initial value on mount; only a real toggle ends the welcome drops.
+    if (on !== this.autoFlow) this.welcomeDrops = false;
     this.autoFlow = on;
   }
 
   wash() {
     this.saveUndo();
-    this.attract = false;
+    this.welcomeDrops = false;
     this.washing = 1.6;
   }
 
@@ -186,7 +181,7 @@ export class FluidSim {
 
   dropRandom() {
     this.saveUndo();
-    this.attract = false;
+    this.welcomeDrops = false;
     this.dropInk(0.2 + Math.random() * 0.6, 0.2 + Math.random() * 0.6, this.currentInkColor(true), 0.8 + Math.random() * 0.6);
     this.onInteract?.();
   }
@@ -200,15 +195,13 @@ export class FluidSim {
     this.params[key] = value;
   }
 
-  /** The last frame stays on screen while paused. */
   setPaused(paused: boolean) {
     this.paused = paused;
   }
 
   exportImage(): Promise<Blob> {
     if (this.contextLost) return Promise.reject(new Error('The graphics are restarting'));
-    // Without preserveDrawingBuffer the canvas is only readable in the task
-    // that drew it, so draw and copy synchronously, then encode off-thread.
+    // Without preserveDrawingBuffer the canvas is only readable in the task that drew it.
     this.drawDisplay();
     const src = this.renderer.domElement;
     const copy = document.createElement('canvas');
@@ -225,7 +218,6 @@ export class FluidSim {
     return pickVideoMime() !== null && typeof this.renderer.domElement.captureStream === 'function';
   }
 
-  /** Records until stopRecording() or 30 s; the file arrives via onRecorded. */
   startRecording() {
     if (this.mediaRecorder) return;
     const mime = pickVideoMime();
@@ -285,7 +277,6 @@ export class FluidSim {
       .forEach(m => m.dispose());
     this.quad.geometry.dispose();
     this.renderer.dispose();
-    // Free the GPU context now rather than whenever GC gets to it.
     this.renderer.forceContextLoss();
     canvas.remove();
   }
@@ -327,7 +318,6 @@ export class FluidSim {
         read.setSize(nw, nh); write.setSize(nw, nh);
         texel.set(1 / nw, 1 / nh);
       },
-      // setSize wipes contents: allocate fresh targets, blit the old picture across.
       resizePreserving(nw: number, nh: number, copy: (src: THREE.Texture, dst: THREE.WebGLRenderTarget) => void) {
         const newRead = makeRT(nw, nh);
         const newWrite = makeRT(nw, nh);
@@ -350,14 +340,12 @@ export class FluidSim {
     this.renderer.render(this.scene, this.camera);
   }
 
-  // The CLEAR shader with uValue=1 doubles as a texture copy (and rescale).
   private copyInto(src: THREE.Texture, dst: THREE.WebGLRenderTarget) {
     this.clearMat.uniforms.uTexture.value = src;
     this.clearMat.uniforms.uValue.value = 1;
     this.blit(this.clearMat, dst);
   }
 
-  // Auto-flow drops never snapshot — they'd overwrite the user's undo point.
   private saveUndo() {
     const S = this.simSizes();
     if (!this.undoDye) this.undoDye = this.makeRT(S.dw, S.dh);
@@ -416,7 +404,6 @@ export class FluidSim {
     this.splatVelocity(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 1.2);
   }
 
-  // Alternating ink drops and water pushes grow concentric rings.
   private ringTick(pt: ActivePointer) {
     if (pt.ringPhase % 2 === 0) {
       const c = this.currentInkColor(true);
@@ -448,10 +435,9 @@ export class FluidSim {
   }
 
   private onPointerDown = (e: PointerEvent) => {
-    // Only the first finger down snapshots undo — the whole gesture is one action.
     const gestureStart = ![...this.pointers.values()].some(p => p.down);
     if (gestureStart) this.saveUndo();
-    this.attract = false;
+    this.welcomeDrops = false;
 
     const p = this.toUV(e);
     const pt: ActivePointer = {
@@ -470,7 +456,6 @@ export class FluidSim {
     } else if (this.tool === 'ring') {
       this.ringTick(pt);
     }
-    // comb deliberately drops no ink on touch — it only moves water
 
     this.lastInteraction = performance.now();
     this.onInteract?.();
@@ -480,7 +465,6 @@ export class FluidSim {
     const p = this.toUV(e);
     let pt = this.pointers.get(e.pointerId);
     if (!pt) {
-      // move without a down = mouse/pen hover
       pt = {
         down: false, moved: false,
         x: p.x, y: p.y, px: p.x, py: p.y,
@@ -501,19 +485,17 @@ export class FluidSim {
   private onPointerUp = (e: PointerEvent) => {
     const pt = this.pointers.get(e.pointerId);
     if (!pt) return;
-    // Fingers vanish on lift; the mouse stays so hovering keeps stirring.
     if (pt.isMouse) pt.down = false;
     else this.pointers.delete(e.pointerId);
   };
 
   private onContextLost = (e: Event) => {
-    e.preventDefault(); // tells the browser we want the context back
+    e.preventDefault(); // without this the browser never restores the context
     this.contextLost = true;
     this.stopRecording();
     this.pointers.clear();
   };
 
-  // three.js rebuilds every GPU resource lazily; their contents are gone.
   private onContextRestored = () => {
     this.contextLost = false;
     this.clearUndo();
@@ -538,7 +520,6 @@ export class FluidSim {
       const hoverBoost = pt.down ? 1 : 1.7;
       this.splatVelocity(pt.x, pt.y, fx * hoverBoost, fy * hoverBoost, pt.down ? 2.0 : 2.6);
       if (pt.down && this.tool === 'brush') {
-        // ink feeds with stroke speed so slow strokes stay watery, not saturated
         const speed = Math.min(Math.hypot(dx, dy) * 26, 1);
         if (speed > 0.04) {
           this.splatDye(pt.x, pt.y, inkAbsorption(pt.color, speed * this.params.flow), 1.5);
@@ -548,7 +529,7 @@ export class FluidSim {
   }
 
   private autoUpdate(now: number, dt: number) {
-    if (!this.autoFlow && !this.attract) return;
+    if (!this.autoFlow && !this.welcomeDrops) return;
     const idle = now - this.lastInteraction > 3000;
 
     this.nextDrop -= dt * 1000;
@@ -599,8 +580,6 @@ export class FluidSim {
     this.divergeMat.uniforms.uTexel.value.copy(vel.texel);
     this.blit(this.divergeMat, this.divergeRT);
 
-    // pressure from the previous frame is decayed, not discarded — it
-    // pre-seeds the Jacobi iterations so 28 passes are enough
     this.clearMat.uniforms.uTexture.value = this.pressure.read.texture;
     this.clearMat.uniforms.uValue.value = 0.8;
     this.blit(this.clearMat, this.pressure.write);
@@ -645,7 +624,6 @@ export class FluidSim {
     this.rafId = requestAnimationFrame(this.frame);
     let dt = (now - this.lastT) / 1000;
     this.lastT = now;
-    // While paused or lost, only the clock advances, so resuming never jumps.
     if (this.paused || this.contextLost) return;
     dt = Math.min(dt, 1 / 30);
     if (dt <= 0) return;
@@ -678,22 +656,22 @@ export class FluidSim {
   }
 
   private onResize = () => {
-    // Debounced — drags and mobile URL-bar changes fire bursts; CSS stretch bridges the gap.
+    // Stretch the old frame now; rebuild the buffers once the resize burst settles.
+    const style = this.renderer.domElement.style;
+    style.width = `${innerWidth}px`;
+    style.height = `${innerHeight}px`;
     clearTimeout(this.resizeTimer);
     this.resizeTimer = window.setTimeout(() => {
       if (this.disposed || this.contextLost) return;
       this.renderer.setSize(innerWidth, innerHeight);
       const S = this.simSizes();
       const copy = (src: THREE.Texture, dst: THREE.WebGLRenderTarget) => this.copyInto(src, dst);
-      // dye + velocity survive the resize; pressure/curl/divergence are transient
       this.velocity.resizePreserving(S.sw, S.sh, copy);
       this.dye.resizePreserving(S.dw, S.dh, copy);
       this.pressure.resize(S.sw, S.sh);
       this.curlRT.setSize(S.sw, S.sh);
       this.divergeRT.setSize(S.sw, S.sh);
-      // undo snapshots are at the old resolution — drop them
       this.clearUndo();
-      // setSize cleared the canvas; a paused sim won't redraw it on its own
       if (this.paused) this.drawDisplay();
     }, 150);
   };
