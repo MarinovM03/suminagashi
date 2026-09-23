@@ -12,8 +12,7 @@ describe('inkAbsorption', () => {
 
   it('gives high, clamped absorbance for black ink', () => {
     const a = inkAbsorption(new THREE.Color('#000000'), 1);
-    // -log(0.012) ≈ 4.42 on every channel
-    expect(a.x).toBeCloseTo(4.42, 1);
+    expect(a.x).toBeCloseTo(-Math.log(0.012), 5);
     expect(a.x).toEqual(a.y);
     expect(a.y).toEqual(a.z);
   });

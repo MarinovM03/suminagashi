@@ -5,9 +5,8 @@ export default defineConfig({
   plugins: [react()],
   server: { port: 5173 },
   build: {
-    // keep fonts as files: inlined data-URIs bloat the render-blocking CSS
+    // fonts as files, not data-URIs inside the render-blocking CSS
     assetsInlineLimit: 0,
-    // vendor chunks stay cached across app releases
     rollupOptions: {
       output: {
         advancedChunks: {

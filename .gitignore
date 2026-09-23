@@ -2,12 +2,10 @@ node_modules/
 dist/
 *.local
 
-# local env files
 .env
 .env.*
 !.env.example
 
-# editor / tooling
 .claude/
 CLAUDE.md
 .vscode/

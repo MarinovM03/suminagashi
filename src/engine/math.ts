@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 
-// Color → absorbance (Beer-Lambert): display composites paper × exp(-A).
 export function inkAbsorption(c: THREE.Color, strength: number): THREE.Vector3 {
   const e = 0.012;
   return new THREE.Vector3(
@@ -10,7 +9,6 @@ export function inkAbsorption(c: THREE.Color, strength: number): THREE.Vector3 {
   );
 }
 
-// Velocity short edge fixed at simRes; dye capped at dyeRes.
 export function computeSimSizes(w: number, h: number, simRes: number, dyeRes: number) {
   const aspect = w / h;
   const dye = Math.min(dyeRes, Math.max(w, h));

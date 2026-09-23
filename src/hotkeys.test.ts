@@ -14,7 +14,6 @@ describe('resolveHotkey', () => {
   });
 
   it('works by physical key, so non-Latin layouts still hit it', () => {
-    // A Cyrillic layout reports e.key "ы" for this key, but e.code stays KeyS.
     expect(resolveHotkey(key('KeyS'), 'page')).toBe('save');
   });
 
