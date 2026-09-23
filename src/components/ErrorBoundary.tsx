@@ -16,7 +16,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
   render() {
     if (!this.state.failed) return this.props.children;
     return (
-      <div className="webgl-error" role="alert">
+      <div className="notice" role="alert">
         <p>Something went wrong.</p>
         <button className="reload" onClick={() => location.reload()}>Reload</button>
       </div>
