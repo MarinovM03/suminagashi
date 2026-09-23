@@ -23,6 +23,7 @@ interface DoubleFBO {
 const RING_INTERVAL = 0.28; // seconds
 const COMB_TINES = 9;
 const COMB_SPACING = 0.05;  // screen-height units
+const MAX_RECORDING_MS = 30_000;
 
 interface ActivePointer {
   down: boolean;
@@ -35,21 +36,30 @@ interface ActivePointer {
   isMouse: boolean;
 }
 
-// WebM first (Chrome, Edge, Firefox), MP4 as the Safari 17+ fallback.
-const VIDEO_MIME_CANDIDATES = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4;codecs=avc1', 'video/mp4'];
+// MP4 first: phones and social apps accept it. Firefox falls back to WebM.
+const VIDEO_MIME_CANDIDATES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
 function pickVideoMime(): string | null {
   if (typeof MediaRecorder === 'undefined') return null;
   return VIDEO_MIME_CANDIDATES.find(m => MediaRecorder.isTypeSupported(m)) ?? null;
 }
 
+export type VideoExt = 'mp4' | 'webm';
+
 export class FluidSim {
   onInteract?: () => void;
   onUndoAvailable?: (available: boolean) => void;
+  onRecordingChange?: (recording: boolean) => void;
+  /** Fires after each recording; null when no frames were captured. */
+  onRecorded?: (video: Blob | null, ext: VideoExt) => void;
+  /** The GPU dropped and rebuilt the context; the canvas restarted blank. */
+  onGraphicsReset?: () => void;
 
   private tool: Tool = 'brush';
   private inkMode: InkMode = 'cycle';
   private inkCycleIdx = 0;
   private autoFlow = false;
+  // Gentle auto drops until the first touch, so a fresh visit looks alive.
+  private attract = true;
   private params: TuneParams = { ...DEFAULT_PARAMS };
 
   private renderer: THREE.WebGLRenderer;
@@ -84,19 +94,28 @@ export class FluidSim {
   private lastInteraction = 0;
   private washing = 0;
   private mediaRecorder: MediaRecorder | null = null;
-  private videoChunks: Blob[] = [];
+  private recordTimer = 0;
   private nextDrop = 1200;
   private nextStir = 2600;
   private lastT = performance.now();
   private rafId = 0;
   private resizeTimer = 0;
+  private paused = false;
+  private contextLost = false;
   private disposed = false;
   private pendingTimeouts: number[] = [];
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, depth: false, stencil: false });
-    this.renderer.setSize(innerWidth, innerHeight);
+    // The solver needs float render targets; without them it would silently draw nothing.
+    const ext = this.renderer.extensions;
+    if (!ext.has('EXT_color_buffer_half_float') && !ext.has('EXT_color_buffer_float')) {
+      this.renderer.dispose();
+      this.renderer.forceContextLoss();
+      throw new Error('This GPU cannot render to float textures');
+    }
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    this.renderer.setSize(innerWidth, innerHeight);
     this.renderer.autoClear = false;
     this.renderer.domElement.setAttribute('role', 'img');
     this.renderer.domElement.setAttribute('aria-label', 'Ink-on-water canvas — draw with the pointer to make marbling patterns');
@@ -130,9 +149,10 @@ export class FluidSim {
     const canvas = this.renderer.domElement;
     canvas.addEventListener('pointerdown', this.onPointerDown);
     canvas.addEventListener('pointermove', this.onPointerMove);
+    canvas.addEventListener('webglcontextlost', this.onContextLost);
+    canvas.addEventListener('webglcontextrestored', this.onContextRestored);
     addEventListener('pointerup', this.onPointerUp);
     addEventListener('pointercancel', this.onPointerUp);
-    addEventListener('keydown', this.onKeyDown);
     addEventListener('resize', this.onResize);
 
     this.seed();
@@ -141,9 +161,16 @@ export class FluidSim {
 
   setTool(tool: Tool) { this.tool = tool; }
   setInkMode(mode: InkMode) { this.inkMode = mode; }
-  setAutoFlow(on: boolean) { this.autoFlow = on; }
+
+  setAutoFlow(on: boolean) {
+    // Only a real toggle ends the attract drops — not the initial sync.
+    if (on !== this.autoFlow) this.attract = false;
+    this.autoFlow = on;
+  }
+
   wash() {
     this.saveUndo();
+    this.attract = false;
     this.washing = 1.6;
   }
 
@@ -157,6 +184,13 @@ export class FluidSim {
     this.onUndoAvailable?.(false);
   }
 
+  dropRandom() {
+    this.saveUndo();
+    this.attract = false;
+    this.dropInk(0.2 + Math.random() * 0.6, 0.2 + Math.random() * 0.6, this.currentInkColor(true), 0.8 + Math.random() * 0.6);
+    this.onInteract?.();
+  }
+
   setPalette(hexes: string[]) {
     this.inks = hexes.map(h => new THREE.Color(h));
     this.inkCycleIdx = 0;
@@ -166,63 +200,64 @@ export class FluidSim {
     this.params[key] = value;
   }
 
-  // toDataURL needs a freshly drawn buffer: without preserveDrawingBuffer
-  // the canvas is only readable in the same task as the render
-  saveImage() {
+  /** The last frame stays on screen while paused. */
+  setPaused(paused: boolean) {
+    this.paused = paused;
+  }
+
+  exportImage(): Promise<Blob> {
+    if (this.contextLost) return Promise.reject(new Error('The graphics are restarting'));
+    // Without preserveDrawingBuffer the canvas is only readable in the task
+    // that drew it, so draw and copy synchronously, then encode off-thread.
     this.drawDisplay();
-    this.download(this.renderer.domElement.toDataURL('image/png'), 'png');
+    const src = this.renderer.domElement;
+    const copy = document.createElement('canvas');
+    copy.width = src.width;
+    copy.height = src.height;
+    copy.getContext('2d')!.drawImage(src, 0, 0);
+    return new Promise((resolve, reject) => copy.toBlob(
+      blob => (blob ? resolve(blob) : reject(new Error('Could not create the image'))),
+      'image/png',
+    ));
   }
 
   get recordingSupported(): boolean {
     return pickVideoMime() !== null && typeof this.renderer.domElement.captureStream === 'function';
   }
 
+  /** Records until stopRecording() or 30 s; the file arrives via onRecorded. */
   startRecording() {
     if (this.mediaRecorder) return;
     const mime = pickVideoMime();
     if (!mime || typeof this.renderer.domElement.captureStream !== 'function') {
-      throw new Error("This browser can't record video. Try Chrome, Edge or Firefox.");
+      throw new Error("This browser can't record video. Try Chrome, Safari, Edge or Firefox.");
     }
     const stream = this.renderer.domElement.captureStream(30);
-    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 });
-    const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-    this.videoChunks = [];
-    rec.ondataavailable = e => { if (e.data.size > 0) this.videoChunks.push(e.data); };
+    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
+    const ext: VideoExt = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const chunks: Blob[] = [];
+    rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
     rec.onstop = () => {
-      const url = URL.createObjectURL(new Blob(this.videoChunks, { type: mime }));
-      this.videoChunks = [];
-      this.download(url, ext);
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      stream.getTracks().forEach(t => t.stop());
+      this.onRecorded?.(chunks.length ? new Blob(chunks, { type: `video/${ext}` }) : null, ext);
     };
     rec.start();
     this.mediaRecorder = rec;
+    this.recordTimer = window.setTimeout(() => this.stopRecording(), MAX_RECORDING_MS);
+    this.onRecordingChange?.(true);
   }
 
   stopRecording() {
-    this.mediaRecorder?.stop();
+    clearTimeout(this.recordTimer);
+    if (!this.mediaRecorder) return;
+    this.mediaRecorder.stop();
     this.mediaRecorder = null;
-  }
-
-  private stamp() {
-    return new Date().toISOString().slice(0, 19).replace('T', '-').replace(/:/g, '');
-  }
-
-  private download(href: string, ext: string) {
-    const a = document.createElement('a');
-    a.href = href;
-    a.download = `suminagashi-${this.stamp()}.${ext}`;
-    a.click();
-  }
-
-  private drawDisplay() {
-    const d = this.displayMat.uniforms;
-    d.uDye.value = this.dye.read.texture;
-    d.uTexel.value.copy(this.dye.texel);
-    this.blit(this.displayMat, null);
+    this.onRecordingChange?.(false);
   }
 
   dispose() {
     this.disposed = true;
+    clearTimeout(this.recordTimer);
     if (this.mediaRecorder) {
       this.mediaRecorder.onstop = null;
       this.mediaRecorder.stop();
@@ -235,9 +270,10 @@ export class FluidSim {
     const canvas = this.renderer.domElement;
     canvas.removeEventListener('pointerdown', this.onPointerDown);
     canvas.removeEventListener('pointermove', this.onPointerMove);
+    canvas.removeEventListener('webglcontextlost', this.onContextLost);
+    canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
     removeEventListener('pointerup', this.onPointerUp);
     removeEventListener('pointercancel', this.onPointerUp);
-    removeEventListener('keydown', this.onKeyDown);
     removeEventListener('resize', this.onResize);
 
     [this.velocity, this.dye, this.pressure].forEach(f => f.dispose());
@@ -249,7 +285,16 @@ export class FluidSim {
       .forEach(m => m.dispose());
     this.quad.geometry.dispose();
     this.renderer.dispose();
+    // Free the GPU context now rather than whenever GC gets to it.
+    this.renderer.forceContextLoss();
     canvas.remove();
+  }
+
+  private drawDisplay() {
+    const d = this.displayMat.uniforms;
+    d.uDye.value = this.dye.read.texture;
+    d.uTexel.value.copy(this.dye.texel);
+    this.blit(this.displayMat, null);
   }
 
   private prog(frag: string, uniforms: Record<string, THREE.IUniform>) {
@@ -323,6 +368,13 @@ export class FluidSim {
     this.onUndoAvailable?.(true);
   }
 
+  private clearUndo() {
+    this.undoDye?.dispose(); this.undoDye = null;
+    this.undoVel?.dispose(); this.undoVel = null;
+    this.hasUndo = false;
+    this.onUndoAvailable?.(false);
+  }
+
   private currentInkColor(advance: boolean) {
     if (this.inkMode === 'cycle') {
       const c = this.inks[this.inkCycleIdx % this.inks.length];
@@ -332,37 +384,29 @@ export class FluidSim {
     return this.inks[this.inkMode] ?? this.inks[0];
   }
 
-  private splatVelocity(x: number, y: number, fx: number, fy: number, radiusMul = 1) {
-    const u = this.splatMat.uniforms;
-    u.uTarget.value = this.velocity.read.texture;
+  private splat(mat: THREE.ShaderMaterial, target: DoubleFBO, x: number, y: number, radiusMul: number) {
+    const u = mat.uniforms;
+    u.uTarget.value = target.read.texture;
     u.uAspect.value = innerWidth / innerHeight;
     u.uPoint.value.set(x, y);
     u.uRadius.value = simConfig.SPLAT_RADIUS * radiusMul;
-    u.uColor.value.set(fx, fy, 0);
-    this.blit(this.splatMat, this.velocity.write);
-    this.velocity.swap();
+    this.blit(mat, target.write);
+    target.swap();
+  }
+
+  private splatVelocity(x: number, y: number, fx: number, fy: number, radiusMul = 1) {
+    this.splatMat.uniforms.uColor.value.set(fx, fy, 0);
+    this.splat(this.splatMat, this.velocity, x, y, radiusMul);
   }
 
   private splatDye(x: number, y: number, absorption: THREE.Vector3, radiusMul = 1) {
-    const u = this.splatMat.uniforms;
-    u.uTarget.value = this.dye.read.texture;
-    u.uAspect.value = innerWidth / innerHeight;
-    u.uPoint.value.set(x, y);
-    u.uRadius.value = simConfig.SPLAT_RADIUS * radiusMul;
-    u.uColor.value.copy(absorption);
-    this.blit(this.splatMat, this.dye.write);
-    this.dye.swap();
+    this.splatMat.uniforms.uColor.value.copy(absorption);
+    this.splat(this.splatMat, this.dye, x, y, radiusMul);
   }
 
   private radialPush(x: number, y: number, radiusMul: number, strength: number) {
-    const u = this.radialMat.uniforms;
-    u.uTarget.value = this.velocity.read.texture;
-    u.uAspect.value = innerWidth / innerHeight;
-    u.uPoint.value.set(x, y);
-    u.uRadius.value = simConfig.SPLAT_RADIUS * radiusMul;
-    u.uStrength.value = strength;
-    this.blit(this.radialMat, this.velocity.write);
-    this.velocity.swap();
+    this.radialMat.uniforms.uStrength.value = strength;
+    this.splat(this.radialMat, this.velocity, x, y, radiusMul);
   }
 
   private dropInk(x: number, y: number, color: THREE.Color, strength: number) {
@@ -407,6 +451,7 @@ export class FluidSim {
     // Only the first finger down snapshots undo — the whole gesture is one action.
     const gestureStart = ![...this.pointers.values()].some(p => p.down);
     if (gestureStart) this.saveUndo();
+    this.attract = false;
 
     const p = this.toUV(e);
     const pt: ActivePointer = {
@@ -461,25 +506,19 @@ export class FluidSim {
     else this.pointers.delete(e.pointerId);
   };
 
-  private onKeyDown = (e: KeyboardEvent) => {
-    // Never fire on focused controls or behind modals — Space must keep activating buttons.
-    const t = e.target instanceof HTMLElement ? e.target : null;
-    if (t?.closest('button, input, select, textarea, [contenteditable], [tabindex]')) return;
-    if (document.querySelector('[aria-modal="true"]')) return;
+  private onContextLost = (e: Event) => {
+    e.preventDefault(); // tells the browser we want the context back
+    this.contextLost = true;
+    this.stopRecording();
+    this.pointers.clear();
+  };
 
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
-      e.preventDefault();
-      this.undo();
-      return;
-    }
-    if (e.code === 'Space') {
-      e.preventDefault();
-      this.saveUndo();
-      this.dropInk(0.2 + Math.random() * 0.6, 0.2 + Math.random() * 0.6, this.currentInkColor(true), 0.8 + Math.random() * 0.6);
-      this.onInteract?.();
-    }
-    if (e.key === 'x' || e.key === 'X') this.wash();
-    if (e.key === 's' || e.key === 'S') this.saveImage();
+  // three.js rebuilds every GPU resource lazily; their contents are gone.
+  private onContextRestored = () => {
+    this.contextLost = false;
+    this.clearUndo();
+    this.seed();
+    this.onGraphicsReset?.();
   };
 
   private applyPointer() {
@@ -509,7 +548,7 @@ export class FluidSim {
   }
 
   private autoUpdate(now: number, dt: number) {
-    if (!this.autoFlow) return;
+    if (!this.autoFlow && !this.attract) return;
     const idle = now - this.lastInteraction > 3000;
 
     this.nextDrop -= dt * 1000;
@@ -606,6 +645,8 @@ export class FluidSim {
     this.rafId = requestAnimationFrame(this.frame);
     let dt = (now - this.lastT) / 1000;
     this.lastT = now;
+    // While paused or lost, only the clock advances, so resuming never jumps.
+    if (this.paused || this.contextLost) return;
     dt = Math.min(dt, 1 / 30);
     if (dt <= 0) return;
 
@@ -640,7 +681,7 @@ export class FluidSim {
     // Debounced — drags and mobile URL-bar changes fire bursts; CSS stretch bridges the gap.
     clearTimeout(this.resizeTimer);
     this.resizeTimer = window.setTimeout(() => {
-      if (this.disposed) return;
+      if (this.disposed || this.contextLost) return;
       this.renderer.setSize(innerWidth, innerHeight);
       const S = this.simSizes();
       const copy = (src: THREE.Texture, dst: THREE.WebGLRenderTarget) => this.copyInto(src, dst);
@@ -651,10 +692,9 @@ export class FluidSim {
       this.curlRT.setSize(S.sw, S.sh);
       this.divergeRT.setSize(S.sw, S.sh);
       // undo snapshots are at the old resolution — drop them
-      this.undoDye?.dispose(); this.undoDye = null;
-      this.undoVel?.dispose(); this.undoVel = null;
-      this.hasUndo = false;
-      this.onUndoAvailable?.(false);
+      this.clearUndo();
+      // setSize cleared the canvas; a paused sim won't redraw it on its own
+      if (this.paused) this.drawDisplay();
     }, 150);
   };
 }

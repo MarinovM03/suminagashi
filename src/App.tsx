@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DEFAULT_PARAMS, PALETTES, type InkMode, type TuneParams, type Tool } from './engine/config';
 import { useFluidSim } from './useFluidSim';
+import { useHotkeys } from './hotkeys';
+import { downloadBlob, stampedName } from './files';
 import Dock from './components/Dock';
 import TunePanel from './components/TunePanel';
 
@@ -13,32 +15,37 @@ export default function App() {
   const [params, setParams] = useState<TuneParams>({ ...DEFAULT_PARAMS });
   const [tuneOpen, setTuneOpen] = useState(false);
   const [status, setStatus] = useState<{ text: string } | null>(null);
-  const [recording, setRecording] = useState(false);
   const [recordSecs, setRecordSecs] = useState(0);
   const [uiHidden, setUiHidden] = useState(false);
   const palette = PALETTES[paletteIdx];
 
-  const { simRef, webglError, hintGone, recordingSupported, canUndo } = useFluidSim(stageRef, { tool, inkMode, autoFlow, palette });
-
   // A fresh object each call so an identical repeated message still resets the timer.
   const flash = useCallback((text: string) => setStatus({ text }), []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'h' && e.key !== 'H') return;
-      const t = e.target instanceof HTMLElement ? e.target : null;
-      if (t?.closest('button, input, select, textarea, [contenteditable], [tabindex]')) return;
-      const next = !uiHidden;
-      setUiHidden(next);
-      if (next) flash('Controls hidden — press H to show them');
-    };
-    addEventListener('keydown', onKey);
-    return () => removeEventListener('keydown', onKey);
-  }, [uiHidden, flash]);
+  const { simRef, webglError, hintGone, recordingSupported, recording, canUndo } = useFluidSim(
+    stageRef,
+    { tool, inkMode, autoFlow, palette },
+    {
+      onRecorded: (video, ext) => {
+        if (!video) {
+          flash('Nothing was recorded — keep this tab open while recording');
+          return;
+        }
+        downloadBlob(video, stampedName(ext));
+        flash('Video saved');
+      },
+      onGraphicsReset: () => flash('The graphics restarted, so the canvas was cleared'),
+    },
+  );
 
-  const cyclePalette = () => {
-    setPaletteIdx(i => (i + 1) % PALETTES.length);
-    setInkMode('cycle');
+  const saveImage = async () => {
+    const sim = simRef.current;
+    if (!sim) return;
+    try {
+      downloadBlob(await sim.exportImage(), stampedName('png'));
+    } catch {
+      flash('Could not save the image');
+    }
   };
 
   const toggleRecord = () => {
@@ -46,16 +53,31 @@ export default function App() {
     if (!sim) return;
     if (recording) {
       sim.stopRecording();
-      setRecording(false);
-      flash('Video saved');
-    } else {
-      try {
-        sim.startRecording();
-        setRecording(true);
-      } catch (e) {
-        flash(e instanceof Error ? e.message : 'Recording is not supported here');
-      }
+      return;
     }
+    try {
+      sim.startRecording();
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Recording is not supported here');
+    }
+  };
+
+  const toggleUi = () => {
+    setUiHidden(!uiHidden);
+    if (!uiHidden) flash('Controls hidden — press H to show them');
+  };
+
+  useHotkeys({
+    drop: () => simRef.current?.dropRandom(),
+    wash: () => simRef.current?.wash(),
+    save: saveImage,
+    undo: () => simRef.current?.undo(),
+    toggleUi,
+  });
+
+  const cyclePalette = () => {
+    setPaletteIdx(i => (i + 1) % PALETTES.length);
+    setInkMode('cycle');
   };
 
   const updateParam = (key: keyof TuneParams, value: number) => {
@@ -79,17 +101,9 @@ export default function App() {
     if (!recording) return;
     setRecordSecs(0);
     const start = Date.now();
-    const id = setInterval(() => {
-      const secs = Math.floor((Date.now() - start) / 1000);
-      setRecordSecs(secs);
-      if (secs >= 30) {
-        simRef.current?.stopRecording();
-        setRecording(false);
-        setStatus({ text: 'Video saved' });
-      }
-    }, 250);
+    const id = setInterval(() => setRecordSecs(Math.floor((Date.now() - start) / 1000)), 250);
     return () => clearInterval(id);
-  }, [recording, simRef]);
+  }, [recording]);
 
   return (
     <>
@@ -104,8 +118,8 @@ export default function App() {
 
       {webglError ? (
         <div className="webgl-error" role="alert">
-          This canvas needs WebGL, which your browser or device couldn't start.
-          Try another browser, or enable hardware acceleration, and reload.
+          Your browser or device couldn't start the graphics this canvas needs (WebGL 2).
+          Try an up-to-date Chrome, Safari, Edge or Firefox, or turn on hardware acceleration, and reload.
         </div>
       ) : (
         <>
@@ -145,7 +159,7 @@ export default function App() {
               onTune={() => setTuneOpen(v => !v)}
               onWash={() => simRef.current?.wash()}
               onUndo={() => simRef.current?.undo()}
-              onSave={() => simRef.current?.saveImage()}
+              onSave={saveImage}
               onRecord={toggleRecord}
             />
           )}
