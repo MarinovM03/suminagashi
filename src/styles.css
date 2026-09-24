@@ -1,22 +1,12 @@
-/* Shippori Mincho (SIL OFL): latin at 500, and at 700 only the slices covering 墨流し. */
+/* Shippori Mincho (SIL OFL). The 700 file holds only 墨流し; any new bold text needs a new subset. */
 @font-face{
   font-family:"Shippori Mincho";font-style:normal;font-weight:500;font-display:swap;
   src:url(/fonts/shippori-mincho-latin-500-normal.woff2) format("woff2");
 }
 @font-face{
   font-family:"Shippori Mincho";font-style:normal;font-weight:700;font-display:swap;
-  src:url(/fonts/shippori-mincho-80-700-normal.woff2) format("woff2");
-  unicode-range:U+2463,U+25a1,U+4ef0,U+5076,U+5098,U+51fd,U+5302,U+5448,U+54c9,U+570b,U+583a,U+5893,U+58a8,U+58ee,U+5949,U+5bdb,U+5f26,U+5f81,U+6052,U+6170,U+61c7,U+631f,U+635c,U+664b,U+69fb,U+6f01,U+7070,U+722a,U+745e,U+755c,U+76c6,U+78c1,U+79e4,U+7bb8,U+7d0b,U+81a8,U+82d7,U+8b5c,U+8f14,U+8fb1,U+8fbb,U+9283,U+9298,U+9a30,U+ff03,U+ff50,U+ff59,U+ff7b,U+ff8e-ff8f;
-}
-@font-face{
-  font-family:"Shippori Mincho";font-style:normal;font-weight:700;font-display:swap;
-  src:url(/fonts/shippori-mincho-111-700-normal.woff2) format("woff2");
-  unicode-range:U+2b,U+d7,U+300e-300f,U+4e07,U+4e8c,U+512a,U+5149,U+518d,U+5236,U+52b9,U+52d9,U+5468,U+578b,U+57fa,U+5b8c,U+5ba2,U+5c02,U+5de5,U+5f37,U+5f62,U+623b,U+63d0,U+652f,U+672a,U+6848,U+6d41,U+7136,U+7537,U+754c,U+76f4,U+79c1,U+7ba1,U+7d44,U+7d4c,U+7dcf,U+7dda,U+7de8,U+82b1,U+897f,U+8ca9,U+8cfc,U+904e,U+9664,U+982d,U+9858,U+98a8,U+9a13,U+ff13,U+ff5c;
-}
-@font-face{
-  font-family:"Shippori Mincho";font-style:normal;font-weight:700;font-display:swap;
-  src:url(/fonts/shippori-mincho-119-700-normal.woff2) format("woff2");
-  unicode-range:U+20,U+2027,U+3001-3002,U+3041-307f,U+3081-308f,U+3091-3093,U+3099-309a,U+309d-309e,U+30a1-30e1,U+30e3-30ed,U+30ef-30f0,U+30f2-30f4,U+30fb-30fe,U+ff0c,U+ff0e;
+  src:url(/fonts/shippori-mincho-title-700.woff2) format("woff2");
+  unicode-range:U+3057,U+58A8,U+6D41;
 }
 
 :root{
