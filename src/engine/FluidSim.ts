@@ -23,6 +23,7 @@ const RING_INTERVAL = 0.28;
 const COMB_TINES = 9;
 const COMB_SPACING = 0.05;
 const MAX_RECORDING_MS = 30_000;
+const SLOW_FRAME_MS = 40; // above the 30 fps cap of phone low-power modes
 
 interface ActivePointer {
   down: boolean;
@@ -96,6 +97,11 @@ export class FluidSim {
   private lastT = performance.now();
   private rafId = 0;
   private resizeTimer = 0;
+  private simRes = simConfig.SIM_RES;
+  private pressureIter = simConfig.PRESSURE_ITER;
+  private lowQuality = false;
+  private frameTimes: number[] = [];
+  private startedAt = performance.now();
   private paused = false;
   private contextLost = false;
   private disposed = false;
@@ -331,7 +337,7 @@ export class FluidSim {
   }
 
   private simSizes() {
-    return computeSimSizes(innerWidth, innerHeight, simConfig.SIM_RES, simConfig.DYE_RES);
+    return computeSimSizes(innerWidth, innerHeight, this.simRes, simConfig.DYE_RES);
   }
 
   private blit(mat: THREE.ShaderMaterial, target: THREE.WebGLRenderTarget | null) {
@@ -587,7 +593,7 @@ export class FluidSim {
 
     this.pressureMat.uniforms.uDivergence.value = this.divergeRT.texture;
     this.pressureMat.uniforms.uTexel.value.copy(vel.texel);
-    for (let i = 0; i < simConfig.PRESSURE_ITER; i++) {
+    for (let i = 0; i < this.pressureIter; i++) {
       this.pressureMat.uniforms.uPressure.value = this.pressure.read.texture;
       this.blit(this.pressureMat, this.pressure.write);
       this.pressure.swap();
@@ -622,10 +628,11 @@ export class FluidSim {
   private frame = (now: number) => {
     if (this.disposed) return;
     this.rafId = requestAnimationFrame(this.frame);
-    let dt = (now - this.lastT) / 1000;
+    const interval = now - this.lastT;
     this.lastT = now;
     if (this.paused || this.contextLost) return;
-    dt = Math.min(dt, 1 / 30);
+    this.watchFrameRate(interval);
+    const dt = Math.min(interval / 1000, 1 / 30);
     if (dt <= 0) return;
 
     this.applyPointer();
@@ -662,17 +669,34 @@ export class FluidSim {
     style.height = `${innerHeight}px`;
     clearTimeout(this.resizeTimer);
     this.resizeTimer = window.setTimeout(() => {
-      if (this.disposed || this.contextLost) return;
-      this.renderer.setSize(innerWidth, innerHeight);
-      const S = this.simSizes();
-      const copy = (src: THREE.Texture, dst: THREE.WebGLRenderTarget) => this.copyInto(src, dst);
-      this.velocity.resizePreserving(S.sw, S.sh, copy);
-      this.dye.resizePreserving(S.dw, S.dh, copy);
-      this.pressure.resize(S.sw, S.sh);
-      this.curlRT.setSize(S.sw, S.sh);
-      this.divergeRT.setSize(S.sw, S.sh);
-      this.clearUndo();
-      if (this.paused) this.drawDisplay();
+      if (!this.disposed && !this.contextLost) this.resizeBuffers();
     }, 150);
   };
+
+  private resizeBuffers() {
+    this.renderer.setSize(innerWidth, innerHeight);
+    const S = this.simSizes();
+    const copy = (src: THREE.Texture, dst: THREE.WebGLRenderTarget) => this.copyInto(src, dst);
+    this.velocity.resizePreserving(S.sw, S.sh, copy);
+    this.dye.resizePreserving(S.dw, S.dh, copy);
+    this.pressure.resize(S.sw, S.sh);
+    this.curlRT.setSize(S.sw, S.sh);
+    this.divergeRT.setSize(S.sw, S.sh);
+    this.clearUndo();
+    if (this.paused) this.drawDisplay();
+  }
+
+  private watchFrameRate(interval: number) {
+    if (this.lowQuality || this.mediaRecorder || document.hidden) return;
+    this.frameTimes.push(interval);
+    if (this.frameTimes.length < 90) return;
+    const median = this.frameTimes.sort((a, b) => a - b)[45];
+    this.frameTimes = [];
+    if (performance.now() - this.startedAt < 3000 || median <= SLOW_FRAME_MS) return;
+    this.lowQuality = true;
+    this.simRes = 128;
+    this.pressureIter = 16;
+    this.renderer.setPixelRatio(1);
+    this.resizeBuffers();
+  }
 }
