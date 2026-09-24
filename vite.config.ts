@@ -7,9 +7,9 @@ export default defineConfig({
   build: {
     // fonts as files, not data-URIs inside the render-blocking CSS
     assetsInlineLimit: 0,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        advancedChunks: {
+        codeSplitting: {
           groups: [
             { name: 'three', test: /node_modules[\\/]three[\\/]/ },
             { name: 'vendor', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
