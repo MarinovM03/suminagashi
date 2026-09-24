@@ -70,6 +70,9 @@ button:disabled{cursor:default}
   background:linear-gradient(to bottom,var(--line-2),transparent);
 }
 
+/* a pinch that starts on the controls would zoom the whole page */
+.wordmark,.capture,.dock-compact,.ink-tray{touch-action:none}
+
 .wordmark{position:fixed;z-index:5;top:calc(8px + var(--safe-t));left:calc(8px + var(--safe-l))}
 .wordmark button{
   display:flex;align-items:baseline;gap:9px;min-height:44px;padding:8px 10px;border-radius:14px;
@@ -244,8 +247,8 @@ button:disabled{cursor:default}
 .tune-wide{top:calc(24px + var(--safe-t));right:calc(24px + var(--safe-r));width:288px}
 .tune-compact{
   left:0;right:0;margin:0 auto;bottom:calc(22px + var(--dock-h) + var(--safe-b));width:var(--panel-w);
-  max-height:calc(100vh - 150px);
-  max-height:calc(100dvh - 60px - var(--dock-h) - var(--safe-b) - var(--safe-t));overflow:auto;
+  max-height:calc(100vh - 172px);
+  max-height:calc(100dvh - 82px - var(--dock-h) - var(--safe-b) - var(--safe-t));overflow:auto;
 }
 .tune-head{display:flex;align-items:center;justify-content:space-between;margin-right:-8px}
 .tune-head h2,.sheet-title{font-size:11px;font-weight:500;letter-spacing:.26em;text-transform:uppercase;color:var(--ink-2)}
@@ -337,11 +340,13 @@ dialog.sheet.center{
 }
 dialog.sheet.center.closing{animation:pop .2s ease-in reverse forwards}
 @keyframes sheet-up{from{transform:translateY(100%)}to{transform:none}}
-@keyframes sheet-down{from{transform:none}to{transform:translateY(100%)}}
+@keyframes sheet-down{from{transform:translateY(var(--swipe-y,0px))}to{transform:translateY(100%)}}
 @keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 
 .sheet-grab{width:38px;height:5px;margin:10px auto 0;border-radius:3px;background:var(--line-2)}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 10px 2px 22px}
+.sheet-head:first-child{padding-top:14px}
+dialog.sheet.bottom .sheet-grab,dialog.sheet.bottom .sheet-head{touch-action:none}
 .rows{padding:0 8px}
 .rows-last{position:relative;margin-top:10px;padding-top:10px}
 .rows-last::before{content:"";position:absolute;top:0;left:22px;right:22px;height:1px;background:var(--line)}

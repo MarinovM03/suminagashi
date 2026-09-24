@@ -14,7 +14,6 @@ const external = { target: '_blank', rel: 'noopener noreferrer' };
 export default function AboutSheet({ open, variant, onClose }: AboutSheetProps) {
   return (
     <Sheet open={open} onClose={onClose} label="About suminagashi" variant={variant}>
-      {variant === 'bottom' && <div className="sheet-grab" aria-hidden="true" />}
       <div className="sheet-head">
         <span className="sheet-title">About</span>
         <button className="icon-btn" aria-label="Close" onClick={onClose}>

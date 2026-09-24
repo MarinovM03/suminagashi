@@ -16,7 +16,6 @@ interface MenuSheetProps {
 export default function MenuSheet(p: MenuSheetProps) {
   return (
     <Sheet open={p.open} onClose={p.onClose} label="Menu" variant="bottom">
-      <div className="sheet-grab" aria-hidden="true" />
       <div className="sheet-head">
         <h2 className="sheet-title">Menu</h2>
         <button className="icon-btn" aria-label="Close menu" onClick={p.onClose}>

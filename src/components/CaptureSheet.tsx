@@ -44,7 +44,6 @@ export default function CaptureSheet({ capture, onShare, onSave, onDiscard }: Ca
 
   return (
     <Sheet open={capture !== null} onClose={onDiscard} label={`Your ${noun}`} variant="bottom" dismissible={noun === 'image'}>
-      <div className="sheet-grab" aria-hidden="true" />
       <div className="sheet-head">
         <h2 className="sheet-title">Your {noun}</h2>
         <button className="icon-btn" aria-label={`Discard ${noun}`} onClick={onDiscard}>
