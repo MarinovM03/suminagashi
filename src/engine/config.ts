@@ -17,7 +17,7 @@ export const DEFAULT_PARAMS: TuneParams = {
   flow: 0.14,
   curl: 14,
   fade: 0.07,
-  force: 5200,
+  force: 4800,
 };
 
 export const PARAM_META: { key: keyof TuneParams; label: string; desc: string; min: number; max: number; step: number }[] = [
