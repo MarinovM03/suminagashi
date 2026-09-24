@@ -6,7 +6,7 @@
   "description": "Interactive Japanese ink-marbling (suminagashi) simulator — a real-time GPU fluid simulation built with React, TypeScript and Three.js.",
   "license": "MIT",
   "author": "Martin Marinov",
-  "homepage": "https://github.com/MarinovM03/suminagashi#readme",
+  "homepage": "https://suminagashi.app",
   "repository": {
     "type": "git",
     "url": "https://github.com/MarinovM03/suminagashi.git"

@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/MarinovM03/suminagashi/actions/workflows/ci.yml/badge.svg)](https://github.com/MarinovM03/suminagashi/actions/workflows/ci.yml)
 
-![Red and indigo ink marbled on cream paper, titled 墨流し Suminagashi](public/og-image.jpg)
+**Try it at [suminagashi.app](https://suminagashi.app)**
+
+[![Red and indigo ink marbled on cream paper, titled 墨流し Suminagashi](public/og-image.jpg)](https://suminagashi.app)
 
 An interactive simulation of *suminagashi* (墨流し, "floating ink"), the
 centuries-old Japanese art of marbling paper with ink floated on still water.
