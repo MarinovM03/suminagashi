@@ -120,6 +120,7 @@ button:disabled{cursor:default}
   font-size:14px;line-height:1.8;color:var(--ink-2);
 }
 .notice p+p{margin-top:10px}
+.noscript{position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center;font-size:15px;line-height:1.8;color:var(--ink-2)}
 .reload{
   margin-top:16px;padding:11px 28px;border-radius:999px;
   background:var(--sumi);color:var(--paper);font-size:12px;letter-spacing:.16em;
