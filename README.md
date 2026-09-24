@@ -1,62 +1,42 @@
-# Suminagashi
+# Suminagashi 墨流し
 
 [![CI](https://github.com/MarinovM03/suminagashi/actions/workflows/ci.yml/badge.svg)](https://github.com/MarinovM03/suminagashi/actions/workflows/ci.yml)
 
-An interactive simulation of *suminagashi* (墨流し — "floating ink"), the
-centuries-old Japanese art of marbling paper by floating ink on still water.
+![Red and indigo ink marbled on cream paper, titled 墨流し Suminagashi](public/og-image.jpg)
 
-Ink drops spread, swirl and feather in real time on a GPU fluid simulation.
-Trace the surface with your pointer to draw ink, hold to grow concentric
-rings, or comb across the surface to feather the colors into waves — then
-let the auto-flow mode paint on its own.
+An interactive simulation of *suminagashi* (墨流し, "floating ink"), the
+centuries-old Japanese art of marbling paper with ink floated on still water.
+Drop ink, swirl it, comb it into feathered waves, then save or share the result.
+It runs in any modern browser, on phones and desktops.
+
+## Features
+
+- **Brush** draws ink that feeds with stroke speed, so it spreads on the water
+  instead of saturating. Hovering stirs the water; every finger paints its own
+  stroke on touch screens.
+- **Rings**: press and hold to grow concentric rings from alternating drops of
+  ink and water, the classic suminagashi technique.
+- **Comb**: drag a row of tines through floating ink to feather it.
+- **Four palettes** (Traditional, Ebru, Sunset, Neon), each with a cycle mode
+  that uses the next ink on every touch.
+- **Photo and video**: capture the marble as a PNG or record the flowing ink as
+  an MP4 (WebM where MP4 recording isn't supported), then share it straight to
+  other apps on phones.
+- **Tune** the water live (ink flow, swirl, fade, force), **Auto flow** for drops
+  and currents while you rest, **Wash**, and one-step **Undo**.
+- **Built for phones**: a compact touch layout, fullscreen mode, and
+  "Add to Home Screen" support. Slow devices switch to a lighter simulation.
+- **Keyboard**: `Space` drops ink, `X` washes, `S` saves a PNG, `Ctrl`/`⌘`+`Z`
+  undoes, `H` hides the controls.
 
 ## How it works
 
-- **Fluid solver** — Jos Stam's *Stable Fluids* method running entirely on the
-  GPU (advection → vorticity confinement → pressure projection), implemented
-  with Three.js using ping-pong half-float render targets. The velocity field
-  runs at low resolution for speed while the dye field renders at up to 1280px.
-- **Subtractive ink** — the dye field stores *absorbance*, not color. The
-  display shader composites `paper × exp(−A)` (Beer–Lambert law), so
-  overlapping inks darken and blend like real pigment on paper instead of
-  glowing like screen colors. A procedural washi-paper fiber texture and edge
-  vignette finish the look.
-
-## Tools
-
-- **Brush** — drag to draw ink; the ink feeds in proportion to stroke speed,
-  so it spreads on the water instead of saturating like a marker. Hovering
-  stirs the water without depositing ink. On touch screens every finger
-  paints its own stroke in its own color — the rings and comb are
-  multi-touch too.
-- **Rings** — press and hold: alternating drops of ink and water push
-  outward into concentric rings, the classic suminagashi technique
-- **Comb** — drag a row of tines through floating ink to feather it
-
-A **Tune** panel exposes the fluid physics live — ink flow, swirl, fade and
-force — with a reset to defaults.
-
-## Color palettes
-
-Four switchable palettes, each with a cycle mode that rotates through its
-inks on every touch:
-
-- **Traditional** — sumi (ink black), ai (indigo), shu (vermilion), matsuba (pine green)
-- **Ebru** — lapis, turquoise, oxide red, ochre, after Turkish paper marbling
-- **Sunset** — violet, crimson, burnt orange, amber
-- **Neon** — hot pink, cyan, lime, electric purple
-
-**Save** downloads the current marble as a PNG; **Record** captures a video
-of the ink flowing while you keep drawing — WebM, or MP4 on Safari (click
-again to stop, or it caps at 30 seconds).
-
-**Undo** (or `Ctrl+Z`) restores the marble to the moment before your last
-stroke, drop, or wash — one level, for rescuing a composition from a smear.
-
-**Keyboard:** `Space` drops ink at a random spot, `X` washes the surface,
-`S` saves the current marble as a PNG, `Ctrl+Z` undoes the last action, and
-`H` hides the interface for clean screenshots and screen recordings (press
-`H` again to bring it back).
+- **Fluid solver**: Jos Stam's *Stable Fluids* running entirely on the GPU
+  (advection, vorticity confinement, pressure projection) with Three.js and
+  ping-pong half-float render targets.
+- **Subtractive ink**: the dye field stores *absorbance*, not color, and the
+  display composites `paper × exp(−A)` (Beer–Lambert), so overlapping inks darken
+  like real pigment on paper instead of glowing like screen colors.
 
 ## Running locally
 
@@ -65,26 +45,28 @@ npm install
 npm run dev
 ```
 
-Build for production with `npm run build` (output in `dist/`).
+`npm run build` writes a static site to `dist/`. `npm test` and `npm run lint`
+run the checks that CI runs.
 
 ## Deploying
 
-The app is a fully static front-end — no server, database or accounts.
-`npm run build` produces a `dist/` folder you can host on any static host
-(Cloudflare Pages, Netlify, Vercel, GitHub Pages…).
+The site is fully static, with no server, database or accounts, so any static
+host works. Set `SITE_URL` to the public address at build time; it fills in the
+canonical and social-preview links, `robots.txt` and `sitemap.xml`.
 
-`firestore.rules` is a deny-all placeholder that keeps the (currently unused)
-Firebase project locked while the community gallery is shelved.
+`firestore.rules` is a deny-all placeholder that keeps the unused Firebase
+project locked while the community gallery is shelved.
 
-## Stack
+## Credits
 
-React 18 · TypeScript · Vite · Three.js
+Built with React, TypeScript, Vite and Three.js. The fluid solver is derived from
+Pavel Dobryakov's [WebGL Fluid Simulation](https://github.com/PavelDoGreat/WebGL-Fluid-Simulation),
+and the typeface is [Shippori Mincho](https://github.com/fontdasu/ShipporiMincho).
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for their licenses.
+
+Released under the [MIT License](LICENSE).
 
 ## Roadmap
 
-- [x] PNG export of the current marble
-- [x] Video capture of the flowing ink
-- [x] Switchable color palettes (traditional, ebru, sunset, neon)
-- [x] Physics control panel (ink flow, swirl, fade, force)
-- [ ] Community gallery with moderation — publish, browse and share marbles.
+- [ ] Community gallery with moderation: publish, browse and share marbles.
       An earlier prototype lives in the git history and will be rebuilt.
