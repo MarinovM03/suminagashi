@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { inkAbsorption, computeSimSizes, strokeDelta } from './math';
+import { inkAbsorption, computeSimSizes, aspectCorrectedDelta } from './math';
 
 describe('inkAbsorption', () => {
   it('gives near-zero absorbance for white ink', () => {
@@ -26,9 +26,9 @@ describe('inkAbsorption', () => {
   });
 });
 
-describe('strokeDelta', () => {
+describe('aspectCorrectedDelta', () => {
   const push = (w: number, h: number, px: number, py: number) => {
-    const [x, y] = strokeDelta(px / w, py / h, w / h);
+    const [x, y] = aspectCorrectedDelta(px / w, py / h, w / h);
     return Math.hypot(x, y);
   };
 
@@ -41,7 +41,7 @@ describe('strokeDelta', () => {
   });
 
   it('leaves a square viewport unchanged', () => {
-    expect(strokeDelta(0.1, -0.2, 1)).toEqual([0.1, -0.2]);
+    expect(aspectCorrectedDelta(0.1, -0.2, 1)).toEqual([0.1, -0.2]);
   });
 });
 

@@ -31,8 +31,7 @@ export const SPLAT = /* glsl */ `
   }
 `;
 
-// A drop spreading on the water pushes floating ink outward, keeping its area: a point at distance d
-// came from sqrt(d² - r²). It moves the dye directly because the pressure solve cancels radial pushes.
+// Moves the dye itself (a point at distance d came from √(d²−r²)): the pressure solve cancels radial velocity pushes.
 export const DROP = /* glsl */ `
   precision highp float;
   varying vec2 vUv;
@@ -172,9 +171,9 @@ export const DISPLAY = /* glsl */ `
   }
 
   void main(){
-    float fiber = noise(vUv * 420.0) * 0.028
-                + noise(vUv * 180.0) * 0.022
-                + noise(vUv * 60.0)  * 0.018;
+    float fiber = (noise(vUv * 420.0) - 0.5) * 0.028
+                + (noise(vUv * 180.0) - 0.5) * 0.022
+                + (noise(vUv * 60.0)  - 0.5) * 0.018;
 
     vec3 A = texture2D(uDye, vUv).rgb;
     vec3 col = uPaper * exp(-A) + fiber;

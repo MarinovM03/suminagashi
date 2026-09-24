@@ -9,8 +9,7 @@ export function inkAbsorption(c: THREE.Color, strength: number): THREE.Vector3 {
   );
 }
 
-// UV deltas measured against the long edge, so a stroke pushes equally hard in every direction.
-export function strokeDelta(dx: number, dy: number, aspect: number): [number, number] {
+export function aspectCorrectedDelta(dx: number, dy: number, aspect: number): [number, number] {
   return aspect < 1 ? [dx * aspect, dy] : [dx, dy / aspect];
 }
 

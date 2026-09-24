@@ -1,13 +1,12 @@
 import * as THREE from 'three';
 import { simConfig, DEFAULT_PARAMS, PALETTES, PAPER, type InkMode, type TuneParams, type Tool } from './config';
-import { inkAbsorption, computeSimSizes, strokeDelta } from './math';
+import { inkAbsorption, computeSimSizes, aspectCorrectedDelta } from './math';
 import {
   VERT, ADVECT, SPLAT, DROP, CURL, VORTICITY,
   DIVERGENCE, PRESSURE, GRADIENT_SUBTRACT, CLEAR, RESAMPLE, DISPLAY,
 } from './shaders';
 
-/* Stable Fluids (Jos Stam) on ping-pong half-float FBOs. The dye stores absorbance,
-   not color, so overlapping inks darken like pigment: display = paper × exp(-A). */
+// The dye holds absorbance, not colour: display = paper × exp(−A), so overlapping inks darken like pigment.
 
 interface DoubleFBO {
   read: THREE.WebGLRenderTarget;
@@ -149,8 +148,8 @@ export class FluidSim {
     this.gradientMat = this.prog(GRADIENT_SUBTRACT, { uPressure: { value: null }, uVelocity: { value: null }, uTexel: v2() });
     this.clearMat = this.prog(CLEAR, { uTexture: { value: null }, uValue: { value: 0.8 } });
     this.resampleMat = this.prog(RESAMPLE, { uTexture: { value: null }, uScale: v2() });
-    const paper = new THREE.Color(PAPER);
-    this.displayMat = this.prog(DISPLAY, { uDye: { value: null }, uTexel: v2(), uPaper: { value: new THREE.Vector3(paper.r, paper.g, paper.b) } });
+    const paperSRGB = new THREE.Color(PAPER).convertLinearToSRGB();
+    this.displayMat = this.prog(DISPLAY, { uDye: { value: null }, uTexel: v2(), uPaper: { value: new THREE.Vector3(paperSRGB.r, paperSRGB.g, paperSRGB.b) } });
 
     this.inks = PALETTES[0].colors.map(c => new THREE.Color(c.hex));
 
@@ -444,7 +443,7 @@ export class FluidSim {
     const len = Math.hypot(vx, vy);
     if (len < 1e-5) return;
     const px = -vy / len, py = vx / len;
-    const [sx, sy] = strokeDelta(dx, dy, aspect);
+    const [sx, sy] = aspectCorrectedDelta(dx, dy, aspect);
     const fx = sx * this.params.force * 1.1;
     const fy = sy * this.params.force * 1.1;
     for (let i = 0; i < COMB_TINES; i++) {
@@ -539,7 +538,7 @@ export class FluidSim {
         this.comb(pt.x, pt.y, dx, dy);
         continue;
       }
-      const [sx, sy] = strokeDelta(dx, dy, innerWidth / innerHeight);
+      const [sx, sy] = aspectCorrectedDelta(dx, dy, innerWidth / innerHeight);
       const push = this.params.force * (pt.down ? 1 : 1.7);
       this.splatVelocity(pt.x, pt.y, sx * push, sy * push, pt.down ? 2.0 : 2.6);
       if (pt.down && this.tool === 'brush') {
@@ -680,7 +679,6 @@ export class FluidSim {
   }
 
   private onResize = () => {
-    // Stretch the old frame now; rebuild the buffers once the resize burst settles.
     const style = this.renderer.domElement.style;
     style.width = `${innerWidth}px`;
     style.height = `${innerHeight}px`;
@@ -695,7 +693,6 @@ export class FluidSim {
   };
 
   private resizeBuffers() {
-    // Same on-screen size: rotating a phone crops the marble rather than squashing it.
     const scale = new THREE.Vector2(innerWidth / this.viewW, innerHeight / this.viewH);
     this.viewW = innerWidth;
     this.viewH = innerHeight;
