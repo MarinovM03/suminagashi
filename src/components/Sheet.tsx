@@ -19,7 +19,6 @@ interface Swipe {
   dy: number;
 }
 
-// Stays mounted so closing can animate; parents only toggle `open`.
 export default function Sheet({ open, onClose, label, variant, dismissible = true, children }: SheetProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const latest = useRef({ open, onClose, dismissible });
@@ -48,12 +47,11 @@ export default function Sheet({ open, onClose, label, variant, dismissible = tru
 
   useEffect(() => {
     const dialog = ref.current!;
-    // Escape and the Android back gesture close through React, keeping state in sync and animating.
+    // Escape/back must close through React to animate; a repeated back gesture can still force it shut.
     const onCancel = (e: Event) => {
       e.preventDefault();
       if (latest.current.dismissible) latest.current.onClose();
     };
-    // A repeated back gesture can still force the dialog shut.
     const onForcedClose = () => {
       if (latest.current.open) latest.current.onClose();
     };
@@ -89,7 +87,6 @@ export default function Sheet({ open, onClose, label, variant, dismissible = tru
     const dialog = e.currentTarget;
     const flick = s.dy > 24 && s.dy / Math.max(e.timeStamp - s.startT, 1) > 0.5;
     if (e.type === 'pointerup' && (s.dy > SWIPE_CLOSE_PX || flick)) {
-      // the exit animation starts from where the finger let go
       dialog.style.setProperty('--swipe-y', `${s.dy}px`);
       onClose();
       return;

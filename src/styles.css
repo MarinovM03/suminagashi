@@ -1,4 +1,4 @@
-/* Shippori Mincho (SIL OFL). The 700 file holds only 墨流し; any new bold text needs a new subset. */
+/* The 700 file holds only 墨流し; any other bold text needs a new subset. */
 @font-face{
   font-family:"Shippori Mincho";font-style:normal;font-weight:500;font-display:swap;
   src:url(/fonts/shippori-mincho-latin-500-normal.woff2) format("woff2");
@@ -70,7 +70,6 @@ button:disabled{cursor:default}
   background:linear-gradient(to bottom,var(--line-2),transparent);
 }
 
-/* a pinch that starts on the controls would zoom the whole page */
 .wordmark,.capture,.dock-compact,.ink-tray{touch-action:none}
 
 .wordmark{position:fixed;z-index:5;top:calc(8px + var(--safe-t));left:calc(8px + var(--safe-l))}

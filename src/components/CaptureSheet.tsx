@@ -22,16 +22,17 @@ interface Preview {
   canShare: boolean;
 }
 
+const KEEP_DURING_EXIT_MS = 300;
+
 export default function CaptureSheet({ capture, onShare, onSave, onDiscard }: CaptureSheetProps) {
   const [preview, setPreview] = useState<Preview | null>(null);
 
-  // keep the preview through the closing animation
   useEffect(() => {
     if (capture) {
       setPreview({ url: URL.createObjectURL(capture.blob), kind: capture.kind, canShare: canShareFiles(capture.blob.type) });
       return;
     }
-    const timer = setTimeout(() => setPreview(null), 300);
+    const timer = setTimeout(() => setPreview(null), KEEP_DURING_EXIT_MS);
     return () => clearTimeout(timer);
   }, [capture]);
 
