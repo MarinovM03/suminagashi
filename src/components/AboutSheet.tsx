@@ -60,7 +60,7 @@ export default function AboutSheet({ open, variant, onClose }: AboutSheetProps) 
           Typeface <a href="https://github.com/fontdasu/ShipporiMincho" {...external}>Shippori Mincho</a> (SIL Open Font License).
         </p>
         <p className="about-small">
-          Made by Martin Marinov · <a href={REPO} {...external}>Source on GitHub</a>
+          Made by Martin Marinov · <a href={REPO} {...external}>Source on GitHub</a> · <a href="/licenses.txt" {...external}>Licences</a>
         </p>
       </article>
     </Sheet>
