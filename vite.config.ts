@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const SITE_URL = new URL(process.env.SITE_URL ?? 'https://suminagashi-ink.pages.dev').origin;
+const SITE_URL = new URL(process.env.SITE_URL ?? 'https://suminagashi.app').origin;
 const notices = () => readFileSync(new URL('./THIRD_PARTY_NOTICES.md', import.meta.url), 'utf8');
 
 function siteFiles(): Plugin {
