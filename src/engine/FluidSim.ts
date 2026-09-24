@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { simConfig, DEFAULT_PARAMS, PALETTES, PAPER, type InkMode, type TuneParams, type Tool } from './config';
-import { inkAbsorption, computeSimSizes } from './math';
+import { inkAbsorption, computeSimSizes, strokeDelta } from './math';
 import {
-  VERT, ADVECT, SPLAT, RADIAL_PUSH, CURL, VORTICITY,
-  DIVERGENCE, PRESSURE, GRADIENT_SUBTRACT, CLEAR, DISPLAY,
+  VERT, ADVECT, SPLAT, DROP, CURL, VORTICITY,
+  DIVERGENCE, PRESSURE, GRADIENT_SUBTRACT, CLEAR, RESAMPLE, DISPLAY,
 } from './shaders';
 
 /* Stable Fluids (Jos Stam) on ping-pong half-float FBOs. The dye stores absorbance,
@@ -20,6 +20,9 @@ interface DoubleFBO {
 }
 
 const RING_INTERVAL = 0.28;
+const RING_RADIUS = 0.045;
+const RING_INK = 0.4;
+const CLEAR_WATER = new THREE.Vector3();
 const COMB_TINES = 9;
 const COMB_SPACING = 0.05;
 const MAX_RECORDING_MS = 30_000;
@@ -75,13 +78,14 @@ export class FluidSim {
 
   private advectMat: THREE.ShaderMaterial;
   private splatMat: THREE.ShaderMaterial;
-  private radialMat: THREE.ShaderMaterial;
+  private dropMat: THREE.ShaderMaterial;
   private curlMat: THREE.ShaderMaterial;
   private vorticityMat: THREE.ShaderMaterial;
   private divergeMat: THREE.ShaderMaterial;
   private pressureMat: THREE.ShaderMaterial;
   private gradientMat: THREE.ShaderMaterial;
   private clearMat: THREE.ShaderMaterial;
+  private resampleMat: THREE.ShaderMaterial;
   private displayMat: THREE.ShaderMaterial;
 
   private inks: THREE.Color[];
@@ -97,6 +101,8 @@ export class FluidSim {
   private lastT = performance.now();
   private rafId = 0;
   private resizeTimer = 0;
+  private viewW = innerWidth;
+  private viewH = innerHeight;
   private simRes = simConfig.SIM_RES;
   private pressureIter = simConfig.PRESSURE_ITER;
   private lowQuality = false;
@@ -135,13 +141,14 @@ export class FluidSim {
     const v2 = () => ({ value: new THREE.Vector2() });
     this.advectMat = this.prog(ADVECT, { uVelocity: { value: null }, uSource: { value: null }, uTexel: v2(), uDt: { value: 0 }, uDissipation: { value: 0 } });
     this.splatMat = this.prog(SPLAT, { uTarget: { value: null }, uAspect: { value: 1 }, uRadius: { value: 0.001 }, uPoint: v2(), uColor: { value: new THREE.Vector3() } });
-    this.radialMat = this.prog(RADIAL_PUSH, { uTarget: { value: null }, uAspect: { value: 1 }, uRadius: { value: 0.001 }, uStrength: { value: 0 }, uPoint: v2() });
+    this.dropMat = this.prog(DROP, { uTarget: { value: null }, uAspect: { value: 1 }, uRadius: { value: 0 }, uEdge: { value: 0 }, uPoint: v2(), uColor: { value: new THREE.Vector3() } });
     this.curlMat = this.prog(CURL, { uVelocity: { value: null }, uTexel: v2() });
     this.vorticityMat = this.prog(VORTICITY, { uVelocity: { value: null }, uCurl: { value: null }, uTexel: v2(), uCurlStrength: { value: 0 }, uDt: { value: 0 } });
     this.divergeMat = this.prog(DIVERGENCE, { uVelocity: { value: null }, uTexel: v2() });
     this.pressureMat = this.prog(PRESSURE, { uPressure: { value: null }, uDivergence: { value: null }, uTexel: v2() });
     this.gradientMat = this.prog(GRADIENT_SUBTRACT, { uPressure: { value: null }, uVelocity: { value: null }, uTexel: v2() });
     this.clearMat = this.prog(CLEAR, { uTexture: { value: null }, uValue: { value: 0.8 } });
+    this.resampleMat = this.prog(RESAMPLE, { uTexture: { value: null }, uScale: v2() });
     const paper = new THREE.Color(PAPER);
     this.displayMat = this.prog(DISPLAY, { uDye: { value: null }, uTexel: v2(), uPaper: { value: new THREE.Vector3(paper.r, paper.g, paper.b) } });
 
@@ -155,6 +162,7 @@ export class FluidSim {
     addEventListener('pointerup', this.onPointerUp);
     addEventListener('pointercancel', this.onPointerUp);
     addEventListener('resize', this.onResize);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
 
     this.seed();
     this.rafId = requestAnimationFrame(this.frame);
@@ -231,15 +239,21 @@ export class FluidSim {
       throw new Error("This browser can't record video. Try Chrome, Safari, Edge or Firefox.");
     }
     const stream = this.renderer.domElement.captureStream(30);
-    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
     const ext: VideoExt = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
     const chunks: Blob[] = [];
-    rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-    rec.onstop = () => {
+    let rec: MediaRecorder;
+    try {
+      rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
+      rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      rec.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        this.onRecorded?.(chunks.length ? new Blob(chunks, { type: `video/${ext}` }) : null, ext);
+      };
+      rec.start();
+    } catch {
       stream.getTracks().forEach(t => t.stop());
-      this.onRecorded?.(chunks.length ? new Blob(chunks, { type: `video/${ext}` }) : null, ext);
-    };
-    rec.start();
+      throw new Error("The video recorder couldn't start. Try again, or use another browser.");
+    }
     this.mediaRecorder = rec;
     this.recordTimer = window.setTimeout(() => this.stopRecording(), MAX_RECORDING_MS);
     this.onRecordingChange?.(true);
@@ -273,13 +287,14 @@ export class FluidSim {
     removeEventListener('pointerup', this.onPointerUp);
     removeEventListener('pointercancel', this.onPointerUp);
     removeEventListener('resize', this.onResize);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
 
     [this.velocity, this.dye, this.pressure].forEach(f => f.dispose());
     [this.curlRT, this.divergeRT].forEach(rt => rt.dispose());
     this.undoDye?.dispose();
     this.undoVel?.dispose();
-    [this.advectMat, this.splatMat, this.radialMat, this.curlMat, this.vorticityMat,
-     this.divergeMat, this.pressureMat, this.gradientMat, this.clearMat, this.displayMat]
+    [this.advectMat, this.splatMat, this.dropMat, this.curlMat, this.vorticityMat, this.divergeMat,
+     this.pressureMat, this.gradientMat, this.clearMat, this.resampleMat, this.displayMat]
       .forEach(m => m.dispose());
     this.quad.geometry.dispose();
     this.renderer.dispose();
@@ -398,9 +413,16 @@ export class FluidSim {
     this.splat(this.splatMat, this.dye, x, y, radiusMul);
   }
 
-  private radialPush(x: number, y: number, radiusMul: number, strength: number) {
-    this.radialMat.uniforms.uStrength.value = strength;
-    this.splat(this.radialMat, this.velocity, x, y, radiusMul);
+  private dropDisc(x: number, y: number, absorbance: THREE.Vector3) {
+    const u = this.dropMat.uniforms;
+    u.uTarget.value = this.dye.read.texture;
+    u.uAspect.value = innerWidth / innerHeight;
+    u.uPoint.value.set(x, y);
+    u.uRadius.value = RING_RADIUS;
+    u.uEdge.value = 1.5 * this.dye.texel.y;
+    u.uColor.value.copy(absorbance);
+    this.blit(this.dropMat, this.dye.write);
+    this.dye.swap();
   }
 
   private dropInk(x: number, y: number, color: THREE.Color, strength: number) {
@@ -411,13 +433,8 @@ export class FluidSim {
   }
 
   private ringTick(pt: ActivePointer) {
-    if (pt.ringPhase % 2 === 0) {
-      const c = this.currentInkColor(true);
-      this.splatDye(pt.x, pt.y, inkAbsorption(c, 0.3), 1.8);
-      this.radialPush(pt.x, pt.y, 5.0, 95);
-    } else {
-      this.radialPush(pt.x, pt.y, 6.0, 150);
-    }
+    const ink = pt.ringPhase % 2 === 0;
+    this.dropDisc(pt.x, pt.y, ink ? inkAbsorption(this.currentInkColor(true), RING_INK) : CLEAR_WATER);
     pt.ringPhase++;
   }
 
@@ -427,8 +444,9 @@ export class FluidSim {
     const len = Math.hypot(vx, vy);
     if (len < 1e-5) return;
     const px = -vy / len, py = vx / len;
-    const fx = dx * this.params.force * 1.1;
-    const fy = dy * this.params.force * 1.1;
+    const [sx, sy] = strokeDelta(dx, dy, aspect);
+    const fx = sx * this.params.force * 1.1;
+    const fy = sy * this.params.force * 1.1;
     for (let i = 0; i < COMB_TINES; i++) {
       const o = (i - (COMB_TINES - 1) / 2) * COMB_SPACING;
       this.splatVelocity(x + (px * o) / aspect, y + py * o, fx, fy, 0.55);
@@ -516,17 +534,16 @@ export class FluidSim {
       const dx = pt.x - pt.px;
       const dy = pt.y - pt.py;
       if (Math.abs(dx) + Math.abs(dy) < 1e-6) continue;
-      const fx = dx * this.params.force;
-      const fy = dy * this.params.force;
 
       if (pt.down && this.tool === 'comb') {
         this.comb(pt.x, pt.y, dx, dy);
         continue;
       }
-      const hoverBoost = pt.down ? 1 : 1.7;
-      this.splatVelocity(pt.x, pt.y, fx * hoverBoost, fy * hoverBoost, pt.down ? 2.0 : 2.6);
+      const [sx, sy] = strokeDelta(dx, dy, innerWidth / innerHeight);
+      const push = this.params.force * (pt.down ? 1 : 1.7);
+      this.splatVelocity(pt.x, pt.y, sx * push, sy * push, pt.down ? 2.0 : 2.6);
       if (pt.down && this.tool === 'brush') {
-        const speed = Math.min(Math.hypot(dx, dy) * 26, 1);
+        const speed = Math.min(Math.hypot(sx, sy) * 26, 1);
         if (speed > 0.04) {
           this.splatDye(pt.x, pt.y, inkAbsorption(pt.color, speed * this.params.flow), 1.5);
         }
@@ -673,10 +690,22 @@ export class FluidSim {
     }, 150);
   };
 
+  private onVisibilityChange = () => {
+    if (document.hidden) this.stopRecording();
+  };
+
   private resizeBuffers() {
+    // Same on-screen size: rotating a phone crops the marble rather than squashing it.
+    const scale = new THREE.Vector2(innerWidth / this.viewW, innerHeight / this.viewH);
+    this.viewW = innerWidth;
+    this.viewH = innerHeight;
     this.renderer.setSize(innerWidth, innerHeight);
     const S = this.simSizes();
-    const copy = (src: THREE.Texture, dst: THREE.WebGLRenderTarget) => this.copyInto(src, dst);
+    const copy = (src: THREE.Texture, dst: THREE.WebGLRenderTarget) => {
+      this.resampleMat.uniforms.uTexture.value = src;
+      this.resampleMat.uniforms.uScale.value.copy(scale);
+      this.blit(this.resampleMat, dst);
+    };
     this.velocity.resizePreserving(S.sw, S.sh, copy);
     this.dye.resizePreserving(S.dw, S.dh, copy);
     this.pressure.resize(S.sw, S.sh);

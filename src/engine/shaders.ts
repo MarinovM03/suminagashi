@@ -31,20 +31,24 @@ export const SPLAT = /* glsl */ `
   }
 `;
 
-export const RADIAL_PUSH = /* glsl */ `
+// A drop spreading on the water pushes floating ink outward, keeping its area: a point at distance d
+// came from sqrt(d² - r²). It moves the dye directly because the pressure solve cancels radial pushes.
+export const DROP = /* glsl */ `
   precision highp float;
   varying vec2 vUv;
   uniform sampler2D uTarget;
-  uniform float uAspect, uRadius, uStrength;
+  uniform float uAspect, uRadius, uEdge;
   uniform vec2 uPoint;
+  uniform vec3 uColor;
   void main(){
     vec2 p = vUv - uPoint;
     p.x *= uAspect;
-    float g = exp(-dot(p, p) / uRadius);
-    vec2 dir = p / (length(p) + 1e-4);
-    dir.x /= uAspect;
-    vec2 vel = texture2D(uTarget, vUv).xy + dir * g * uStrength;
-    gl_FragColor = vec4(vel, 0.0, 1.0);
+    float d = length(p);
+    vec2 src = p * sqrt(max(1.0 - uRadius * uRadius / max(d * d, 1e-12), 0.0));
+    src.x /= uAspect;
+    vec3 pushed = texture2D(uTarget, uPoint + src).rgb;
+    float inside = 1.0 - smoothstep(uRadius - uEdge, uRadius + uEdge, d);
+    gl_FragColor = vec4(mix(pushed, uColor, inside), 1.0);
   }
 `;
 
@@ -138,6 +142,18 @@ export const CLEAR = /* glsl */ `
   uniform sampler2D uTexture;
   uniform float uValue;
   void main(){ gl_FragColor = uValue * texture2D(uTexture, vUv); }
+`;
+
+export const RESAMPLE = /* glsl */ `
+  precision highp float;
+  varying vec2 vUv;
+  uniform sampler2D uTexture;
+  uniform vec2 uScale;
+  void main(){
+    vec2 uv = 0.5 + (vUv - 0.5) * uScale;
+    vec2 inside = step(vec2(0.0), uv) * step(uv, vec2(1.0));
+    gl_FragColor = texture2D(uTexture, uv) * inside.x * inside.y;
+  }
 `;
 
 export const DISPLAY = /* glsl */ `
