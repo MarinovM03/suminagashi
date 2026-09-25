@@ -122,7 +122,15 @@ button:disabled{cursor:default}
   font-size:14px;line-height:1.8;color:var(--ink-2);
 }
 .notice p+p{margin-top:10px}
-.noscript{position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center;font-size:15px;line-height:1.8;color:var(--ink-2)}
+.splash{
+  position:fixed;inset:0;display:grid;place-content:center;justify-items:center;gap:18px;padding:24px;
+  text-align:center;font-size:14px;line-height:1.8;color:var(--ink-2);
+  animation:fade .5s .3s both;
+}
+.splash h1{display:flex;flex-direction:column;align-items:center;gap:8px;font-weight:500}
+.splash h1 [lang="ja"]{font-size:40px;font-weight:700;letter-spacing:.3em;text-indent:.3em;color:var(--sumi)}
+.splash-en{font-size:11px;letter-spacing:.42em;text-indent:.42em;text-transform:uppercase;color:var(--ink-3)}
+.splash p{max-width:34em}
 .reload{
   margin-top:16px;padding:11px 28px;border-radius:999px;
   background:var(--sumi);color:var(--paper);font-size:12px;letter-spacing:.16em;
