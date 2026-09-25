@@ -4,7 +4,7 @@ import Sheet from './Sheet';
 interface MenuSheetProps {
   open: boolean;
   autoFlow: boolean;
-  fullscreen: { supported: boolean; active: boolean };
+  fullscreen: { supported: boolean; active: boolean; needsHomeScreen: boolean };
   onClose: () => void;
   onToggleAuto: () => void;
   onTune: () => void;
@@ -50,6 +50,15 @@ export default function MenuSheet(p: MenuSheetProps) {
             </span>
             <span className="switch" aria-hidden="true" />
           </button>
+        )}
+        {p.fullscreen.needsHomeScreen && (
+          <div className="row row-note">
+            <Icon name="fullscreen" />
+            <span className="row-text">
+              Fullscreen
+              <small>In Safari, tap Share → Add to Home Screen, then open it from there</small>
+            </span>
+          </div>
         )}
       </div>
 

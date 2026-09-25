@@ -6,8 +6,15 @@ type WebkitDocument = Document & {
   webkitExitFullscreen?: () => Promise<void>;
 };
 type WebkitElement = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
+type StandaloneNavigator = Navigator & { standalone?: boolean };
 
 const doc = () => document as WebkitDocument;
+
+export function fullscreenNeedsHomeScreen() {
+  const openedFromHomeScreen = (navigator as StandaloneNavigator).standalone === true
+    || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+  return /iPhone|iPod/.test(navigator.userAgent) && !openedFromHomeScreen;
+}
 const fullscreenElement = () => doc().fullscreenElement ?? doc().webkitFullscreenElement ?? null;
 
 function subscribe(notify: () => void) {
@@ -31,5 +38,5 @@ export function useFullscreen() {
     request?.catch(() => {});
   }, []);
 
-  return { supported, active, toggle };
+  return { supported, active, needsHomeScreen: !supported && fullscreenNeedsHomeScreen(), toggle };
 }
