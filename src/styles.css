@@ -37,24 +37,6 @@
   --dock-h:54px;
   --panel-w:min(460px,calc(100vw - 20px - var(--safe-l) - var(--safe-r)));
 }
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="day"]){
-    color-scheme:dark;
-    --paper:#0a0b0f;
-    --paper-hi:#17191f;
-    --sumi:#ebe5d9;
-    --fg:235,229,217;
-    --shade:0,0,0;
-    --ai:#8fb0ee;
-    --shu:#f06a58;
-    --glass:rgba(23,25,31,.86);
-    --chip:rgba(235,229,217,.94);
-    --chip-fg:#121318;
-    --chip-wash:rgba(18,19,24,.1);
-    --knob:#f4efe6;
-    --raised:#2b2e37;
-  }
-}
 :root[data-theme="night"]{
   color-scheme:dark;
   --paper:#0a0b0f;

@@ -21,8 +21,8 @@ It runs in any modern browser, on phones and desktops.
 - **Comb**: drag a row of tines through floating ink to feather it.
 - **Four palettes** (Traditional, Ebru, Sunset, Neon), each with a cycle mode
   that uses the next ink on every touch.
-- **Night water**: dark water with glowing inks. Follows the device's dark mode,
-  or pick Day or Night yourself.
+- **Night water**: dark water with glowing inks. Pick Night, or Auto to follow
+  the device's dark mode.
 - **Photo and video**: capture the marble as a PNG or record the flowing ink as
   an MP4 (WebM where MP4 recording isn't supported), then share it straight to
   other apps on phones.

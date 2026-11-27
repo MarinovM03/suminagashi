@@ -26,27 +26,30 @@ describe('isNight', () => {
 });
 
 describe('theme choice storage', () => {
-  it('remembers day and night, and forgets on auto', () => {
+  it('starts in day until night or auto is chosen', () => {
     const data = fakeStorage();
+    expect(loadThemeChoice()).toBe('day');
     saveThemeChoice('night');
     expect(loadThemeChoice()).toBe('night');
     saveThemeChoice('auto');
-    expect(data).toEqual({});
     expect(loadThemeChoice()).toBe('auto');
+    saveThemeChoice('day');
+    expect(data).toEqual({});
+    expect(loadThemeChoice()).toBe('day');
   });
 
   it('ignores unknown saved values', () => {
     fakeStorage({ theme: 'sepia' });
-    expect(loadThemeChoice()).toBe('auto');
+    expect(loadThemeChoice()).toBe('day');
   });
 
-  it('falls back to auto when storage is blocked', () => {
+  it('falls back to day when storage is blocked', () => {
     vi.stubGlobal('localStorage', {
       getItem: () => { throw new Error('blocked'); },
       setItem: () => { throw new Error('blocked'); },
       removeItem: () => { throw new Error('blocked'); },
     });
     expect(() => saveThemeChoice('night')).not.toThrow();
-    expect(loadThemeChoice()).toBe('auto');
+    expect(loadThemeChoice()).toBe('day');
   });
 });

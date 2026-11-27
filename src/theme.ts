@@ -11,15 +11,15 @@ const DARK_QUERY = '(prefers-color-scheme: dark)';
 export function loadThemeChoice(): ThemeChoice {
   try {
     const saved = localStorage.getItem(KEY);
-    return THEME_CHOICES.find(c => c === saved) ?? 'auto';
+    return THEME_CHOICES.find(c => c === saved) ?? 'day';
   } catch {
-    return 'auto';
+    return 'day';
   }
 }
 
 export function saveThemeChoice(choice: ThemeChoice) {
   try {
-    if (choice === 'auto') localStorage.removeItem(KEY);
+    if (choice === 'day') localStorage.removeItem(KEY);
     else localStorage.setItem(KEY, choice);
   } catch {
     // Private windows can refuse storage; the choice still holds for this visit.
@@ -45,7 +45,7 @@ export function useTheme() {
     saveThemeChoice(next);
   };
 
-  const toggle = () => choose(!night === systemDark ? 'auto' : night ? 'day' : 'night');
+  const toggle = () => choose(night ? 'day' : 'night');
 
   return { choice, night, choose, toggle };
 }
