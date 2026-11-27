@@ -27,10 +27,16 @@ export const PARAM_META: { key: keyof TuneParams; label: string; desc: string; m
   { key: 'force', label: 'Force', desc: 'How strongly your strokes push the water.', min: 1500, max: 11000, step: 100 },
 ];
 
+export interface Ink {
+  label: string;
+  hex: string;
+}
+
 export interface Palette {
   id: string;
   label: string;
-  colors: { label: string; hex: string }[];
+  colors: Ink[];
+  night: Ink[];
 }
 
 export const PALETTES: Palette[] = [
@@ -43,6 +49,12 @@ export const PALETTES: Palette[] = [
       { label: 'Shu — vermilion', hex: '#c8372d' },
       { label: 'Matsuba — pine green', hex: '#2e6e52' },
     ],
+    night: [
+      { label: 'Gofun — shell white', hex: '#ece6d8' },
+      { label: 'Ai — pale indigo', hex: '#7c9be0' },
+      { label: 'Shu — vermilion', hex: '#e0503c' },
+      { label: 'Kin — gold', hex: '#d6a23c' },
+    ],
   },
   {
     id: 'ebru',
@@ -52,6 +64,12 @@ export const PALETTES: Palette[] = [
       { label: 'Turquoise', hex: '#2a9d8f' },
       { label: 'Oxide red', hex: '#9b2226' },
       { label: 'Ochre', hex: '#bc6c25' },
+    ],
+    night: [
+      { label: 'Pearl', hex: '#e9eef0' },
+      { label: 'Turquoise', hex: '#3cc8b4' },
+      { label: 'Coral', hex: '#ef7a62' },
+      { label: 'Ochre', hex: '#e0a23c' },
     ],
   },
   {
@@ -63,6 +81,12 @@ export const PALETTES: Palette[] = [
       { label: 'Burnt orange', hex: '#e85d04' },
       { label: 'Amber', hex: '#ffba08' },
     ],
+    night: [
+      { label: 'Violet', hex: '#b65cf0' },
+      { label: 'Crimson', hex: '#ff4d4d' },
+      { label: 'Burnt orange', hex: '#ff8a3d' },
+      { label: 'Amber', hex: '#ffc93c' },
+    ],
   },
   {
     id: 'neon',
@@ -73,10 +97,21 @@ export const PALETTES: Palette[] = [
       { label: 'Lime', hex: '#70e000' },
       { label: 'Electric purple', hex: '#7209b7' },
     ],
+    night: [
+      { label: 'Hot pink', hex: '#f72585' },
+      { label: 'Cyan', hex: '#00b4d8' },
+      { label: 'Lime', hex: '#70e000' },
+      { label: 'Electric purple', hex: '#9b4dff' },
+    ],
   },
 ];
+
+export function inksFor(palette: Palette, night: boolean): Ink[] {
+  return night ? palette.night : palette.colors;
+}
 
 export type InkMode = 'cycle' | number;
 export type Tool = 'brush' | 'ring' | 'comb';
 
 export const PAPER = '#efeae0';
+export const WATER = '#0a0b0f';

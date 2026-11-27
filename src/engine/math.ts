@@ -1,12 +1,19 @@
 import * as THREE from 'three';
 
-export function inkAbsorption(c: THREE.Color, strength: number): THREE.Vector3 {
+// Night inks glow: they absorb their sRGB complement, which the display turns back into light.
+export function inkAbsorption(color: THREE.Color, strength: number, glow = false): THREE.Vector3 {
   const e = 0.012;
+  const c = glow ? complement(color) : color;
   return new THREE.Vector3(
     -Math.log(Math.max(c.r, e)) * strength,
     -Math.log(Math.max(c.g, e)) * strength,
     -Math.log(Math.max(c.b, e)) * strength,
   );
+}
+
+function complement(color: THREE.Color) {
+  const s = color.clone().convertLinearToSRGB();
+  return new THREE.Color(1 - s.r, 1 - s.g, 1 - s.b).convertSRGBToLinear();
 }
 
 export function aspectCorrectedDelta(dx: number, dy: number, aspect: number): [number, number] {

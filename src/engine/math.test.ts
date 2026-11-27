@@ -17,6 +17,19 @@ describe('inkAbsorption', () => {
     expect(a.y).toEqual(a.z);
   });
 
+  it('makes white ink absorb fully and black ink not at all when glowing', () => {
+    const white = inkAbsorption(new THREE.Color('#ffffff'), 1, true);
+    const black = inkAbsorption(new THREE.Color('#000000'), 1, true);
+    expect(white.x).toBeCloseTo(-Math.log(0.012), 5);
+    expect(black.x).toBeCloseTo(0, 5);
+  });
+
+  it('lights the ink’s own channels most when glowing', () => {
+    const vermilion = inkAbsorption(new THREE.Color('#e0503c'), 1, true);
+    expect(vermilion.x).toBeGreaterThan(vermilion.y);
+    expect(vermilion.x).toBeGreaterThan(vermilion.z);
+  });
+
   it('scales linearly with strength', () => {
     const c = new THREE.Color('#16407a');
     const a = inkAbsorption(c, 1);
