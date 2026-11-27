@@ -28,7 +28,8 @@ export default function AboutSheet({ open, variant, onClose }: AboutSheetProps) 
         <p>
           Ink is dropped onto still water, spread into rings and fanned or combed into patterns,
           then lifted onto paper. This page simulates it in real time on your graphics card. The ink
-          absorbs light like real pigment, so colors darken where they meet.
+          absorbs light like real pigment, so colors darken where they meet. At night the inks glow
+          instead, and brighten where they meet.
         </p>
 
         <h3>Tools</h3>
@@ -45,6 +46,7 @@ export default function AboutSheet({ open, variant, onClose }: AboutSheetProps) 
             <li><kbd>X</kbd> wash</li>
             <li><kbd>S</kbd> save image</li>
             <li><kbd>Ctrl</kbd> / <kbd>⌘</kbd> <kbd>Z</kbd> undo</li>
+            <li><kbd>N</kbd> night water</li>
             <li><kbd>H</kbd> hide controls</li>
           </ul>
         </div>

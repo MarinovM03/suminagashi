@@ -10,6 +10,7 @@ describe('resolveHotkey', () => {
     expect(resolveHotkey(key('KeyX'), 'page')).toBe('wash');
     expect(resolveHotkey(key('KeyS'), 'page')).toBe('save');
     expect(resolveHotkey(key('KeyH'), 'page')).toBe('toggleUi');
+    expect(resolveHotkey(key('KeyN'), 'page')).toBe('toggleNight');
     expect(resolveHotkey(key('KeyQ'), 'page')).toBeNull();
   });
 
@@ -49,7 +50,7 @@ describe('resolveHotkey', () => {
   });
 
   it('never fires while typing in a text field', () => {
-    for (const code of ['KeyX', 'KeyS', 'KeyH', 'Space']) {
+    for (const code of ['KeyX', 'KeyS', 'KeyH', 'KeyN', 'Space']) {
       expect(resolveHotkey(key(code), 'text')).toBeNull();
     }
     expect(resolveHotkey(key('KeyZ', { ctrlKey: true }), 'text')).toBeNull();

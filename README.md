@@ -21,6 +21,8 @@ It runs in any modern browser, on phones and desktops.
 - **Comb**: drag a row of tines through floating ink to feather it.
 - **Four palettes** (Traditional, Ebru, Sunset, Neon), each with a cycle mode
   that uses the next ink on every touch.
+- **Night water**: dark water with glowing inks. Pick Night, or Auto to follow
+  the device's dark mode.
 - **Photo and video**: capture the marble as a PNG or record the flowing ink as
   an MP4 (WebM where MP4 recording isn't supported), then share it straight to
   other apps on phones.
@@ -29,7 +31,7 @@ It runs in any modern browser, on phones and desktops.
 - **Built for phones**: a compact touch layout, fullscreen mode, and
   "Add to Home Screen" support. Slow devices switch to a lighter simulation.
 - **Keyboard**: `Space` drops ink, `X` washes, `S` saves a PNG, `Ctrl`/`⌘`+`Z`
-  undoes, `H` hides the controls.
+  undoes, `N` switches night water, `H` hides the controls.
 
 ## How it works
 
@@ -38,7 +40,9 @@ It runs in any modern browser, on phones and desktops.
   ping-pong half-float render targets.
 - **Subtractive ink**: the dye field stores *absorbance*, not color, and the
   display composites `paper × exp(−A)` (Beer–Lambert), so overlapping inks darken
-  like real pigment on paper instead of glowing like screen colors.
+  like real pigment on paper instead of glowing like screen colors. Night water
+  flips it to `1 − (1 − water) × exp(−A)` with each ink absorbing its complement,
+  so inks glow and brighten where they meet.
 
 ## Running locally
 

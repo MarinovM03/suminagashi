@@ -1,21 +1,21 @@
 import { useEffect, useRef } from 'react';
-import { PALETTES, type InkMode } from '../engine/config';
+import { PALETTES, type InkMode, type Palette } from '../engine/config';
 import { cycleBackground, inkBackground } from '../swatch';
 
 interface InkTrayProps {
   paletteIdx: number;
+  palette: Palette;
   inkMode: InkMode;
   onPalette: (index: number) => void;
   onInk: (mode: InkMode) => void;
   onClose: () => void;
 }
 
-export default function InkTray({ paletteIdx, inkMode, onPalette, onInk, onClose }: InkTrayProps) {
+export default function InkTray({ paletteIdx, palette, inkMode, onPalette, onInk, onClose }: InkTrayProps) {
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   useEffect(() => { closeRef.current = onClose; });
 
-  const palette = PALETTES[paletteIdx];
   const refocusToggle = () => document.querySelector<HTMLElement>('[data-inks-toggle]')?.focus();
 
   useEffect(() => {

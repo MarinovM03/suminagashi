@@ -7,6 +7,7 @@ interface DockWideProps {
   inkMode: InkMode;
   tool: Tool;
   autoFlow: boolean;
+  night: boolean;
   tuneOpen: boolean;
   recording: boolean;
   canRecord: boolean;
@@ -15,6 +16,7 @@ interface DockWideProps {
   onInk: (mode: InkMode) => void;
   onTool: (tool: Tool) => void;
   onAuto: () => void;
+  onNight: () => void;
   onTune: () => void;
   onWash: () => void;
   onUndo: () => void;
@@ -93,6 +95,9 @@ export default function DockWide(p: DockWideProps) {
 
       <div className="sep" />
 
+      <button className="act" aria-pressed={p.night} title="Dark water and glowing inks (N)" onClick={p.onNight}>
+        Night
+      </button>
       <button className="act" title="About suminagashi, shortcuts and credits" onClick={p.onAbout}>
         About
       </button>

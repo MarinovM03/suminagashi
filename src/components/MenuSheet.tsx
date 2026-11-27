@@ -1,17 +1,26 @@
 import Icon from './Icon';
+import type { ThemeChoice } from '../theme';
 import Sheet from './Sheet';
 
 interface MenuSheetProps {
   open: boolean;
   autoFlow: boolean;
+  theme: ThemeChoice;
   fullscreen: { supported: boolean; active: boolean; needsHomeScreen: boolean };
   onClose: () => void;
   onToggleAuto: () => void;
+  onTheme: (choice: ThemeChoice) => void;
   onTune: () => void;
   onWash: () => void;
   onToggleFullscreen: () => void;
   onAbout: () => void;
 }
+
+const THEMES: { choice: ThemeChoice; label: string }[] = [
+  { choice: 'auto', label: 'Auto' },
+  { choice: 'day', label: 'Day' },
+  { choice: 'night', label: 'Night' },
+];
 
 export default function MenuSheet(p: MenuSheetProps) {
   return (
@@ -32,6 +41,20 @@ export default function MenuSheet(p: MenuSheetProps) {
           </span>
           <span className="switch" aria-hidden="true" />
         </button>
+        <div className="row row-theme" role="group" aria-labelledby="theme-label">
+          <Icon name="moon" />
+          <span className="row-text" id="theme-label">
+            Water
+            <small>Night is dark, with glowing inks</small>
+          </span>
+          <span className="seg">
+            {THEMES.map(t => (
+              <button key={t.choice} aria-pressed={p.theme === t.choice} onClick={() => p.onTheme(t.choice)}>
+                {t.label}
+              </button>
+            ))}
+          </span>
+        </div>
         <button className="row" onClick={p.onTune}>
           <Icon name="tune" />
           <span className="row-text">Tune the water</span>
