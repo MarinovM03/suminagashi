@@ -160,7 +160,8 @@ export const DISPLAY = /* glsl */ `
   varying vec2 vUv;
   uniform sampler2D uDye;
   uniform vec2 uTexel;
-  uniform vec3 uPaper;
+  uniform vec3 uGround;
+  uniform float uGlow;
 
   float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
   float noise(vec2 p){
@@ -175,8 +176,8 @@ export const DISPLAY = /* glsl */ `
                 + (noise(vUv * 180.0) - 0.5) * 0.022
                 + (noise(vUv * 60.0)  - 0.5) * 0.018;
 
-    vec3 A = texture2D(uDye, vUv).rgb;
-    vec3 col = uPaper * exp(-A) + fiber;
+    vec3 T = exp(-texture2D(uDye, vUv).rgb);
+    vec3 col = mix(uGround * T, 1.0 - (1.0 - uGround) * T, uGlow) + fiber * (1.0 - 0.6 * uGlow);
 
     vec2 uv2 = vUv * (1.0 - vUv.yx);
     float vign = pow(uv2.x * uv2.y * 15.0, 0.18);

@@ -7,6 +7,7 @@ interface FluidSimInputs {
   inkMode: InkMode;
   autoFlow: boolean;
   palette: Palette;
+  night: boolean;
 }
 
 interface FluidSimEvents {
@@ -16,11 +17,12 @@ interface FluidSimEvents {
 
 export function useFluidSim(
   stageRef: RefObject<HTMLDivElement>,
-  { tool, inkMode, autoFlow, palette }: FluidSimInputs,
+  { tool, inkMode, autoFlow, palette, night }: FluidSimInputs,
   events: FluidSimEvents,
 ) {
   const simRef = useRef<FluidSim | null>(null);
   const eventsRef = useRef(events);
+  const initialLook = useRef({ night, inks: palette.colors.map(c => c.hex) });
   const [webglError, setWebglError] = useState(false);
   const [hintGone, setHintGone] = useState(false);
   const [recordingSupported, setRecordingSupported] = useState(false);
@@ -32,7 +34,7 @@ export function useFluidSim(
   useEffect(() => {
     let sim: FluidSim;
     try {
-      sim = new FluidSim(stageRef.current!);
+      sim = new FluidSim(stageRef.current!, initialLook.current);
     } catch {
       setWebglError(true);
       return;
@@ -57,6 +59,8 @@ export function useFluidSim(
   useEffect(() => { simRef.current?.setInkMode(inkMode); }, [inkMode]);
   useEffect(() => { simRef.current?.setAutoFlow(autoFlow); }, [autoFlow]);
   useEffect(() => { simRef.current?.setPalette(palette.colors.map(c => c.hex)); }, [palette]);
+  // After the palette effect, so a theme switch reseeds with the new inks.
+  useEffect(() => { simRef.current?.setNight(night); }, [night]);
 
   return { simRef, webglError, hintGone, recordingSupported, recording, canUndo };
 }

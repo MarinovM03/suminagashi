@@ -1,12 +1,13 @@
 import * as THREE from 'three';
-import { simConfig, DEFAULT_PARAMS, PALETTES, PAPER, type InkMode, type TuneParams, type Tool } from './config';
+import { simConfig, DEFAULT_PARAMS, PAPER, WATER, type InkMode, type TuneParams, type Tool } from './config';
 import { inkAbsorption, computeSimSizes, aspectCorrectedDelta } from './math';
 import {
   VERT, ADVECT, SPLAT, DROP, CURL, VORTICITY,
   DIVERGENCE, PRESSURE, GRADIENT_SUBTRACT, CLEAR, RESAMPLE, DISPLAY,
 } from './shaders';
 
-// The dye holds absorbance, not colour: display = paper × exp(−A), so overlapping inks darken like pigment.
+// The dye holds absorbance, not colour. By day display = paper × exp(−A), so overlapping inks darken like pigment;
+// at night display = 1 − (1 − water) × exp(−A), so they brighten like light.
 
 interface DoubleFBO {
   read: THREE.WebGLRenderTarget;
@@ -88,6 +89,7 @@ export class FluidSim {
   private displayMat: THREE.ShaderMaterial;
 
   private inks: THREE.Color[];
+  private night: boolean;
   private reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   private pointers = new Map<number, ActivePointer>();
@@ -112,7 +114,7 @@ export class FluidSim {
   private disposed = false;
   private pendingTimeouts: number[] = [];
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, look: { night: boolean; inks: string[] }) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, depth: false, stencil: false });
     const ext = this.renderer.extensions;
     if (!ext.has('EXT_color_buffer_half_float') && !ext.has('EXT_color_buffer_float')) {
@@ -148,10 +150,11 @@ export class FluidSim {
     this.gradientMat = this.prog(GRADIENT_SUBTRACT, { uPressure: { value: null }, uVelocity: { value: null }, uTexel: v2() });
     this.clearMat = this.prog(CLEAR, { uTexture: { value: null }, uValue: { value: 0.8 } });
     this.resampleMat = this.prog(RESAMPLE, { uTexture: { value: null }, uScale: v2() });
-    const paperSRGB = new THREE.Color(PAPER).convertLinearToSRGB();
-    this.displayMat = this.prog(DISPLAY, { uDye: { value: null }, uTexel: v2(), uPaper: { value: new THREE.Vector3(paperSRGB.r, paperSRGB.g, paperSRGB.b) } });
+    this.displayMat = this.prog(DISPLAY, { uDye: { value: null }, uTexel: v2(), uGround: { value: new THREE.Vector3() }, uGlow: { value: 0 } });
 
-    this.inks = PALETTES[0].colors.map(c => new THREE.Color(c.hex));
+    this.inks = look.inks.map(h => new THREE.Color(h));
+    this.night = look.night;
+    this.applyGround();
 
     const canvas = this.renderer.domElement;
     canvas.addEventListener('pointerdown', this.onPointerDown);
@@ -202,6 +205,17 @@ export class FluidSim {
   setPalette(hexes: string[]) {
     this.inks = hexes.map(h => new THREE.Color(h));
     this.inkCycleIdx = 0;
+  }
+
+  setNight(night: boolean) {
+    if (night === this.night) return;
+    this.night = night;
+    this.applyGround();
+    this.clearUndo();
+    this.copyInto(this.dye.read.texture, this.dye.write, 0);
+    this.dye.swap();
+    this.seed();
+    if (this.paused) this.drawDisplay();
   }
 
   setParam<K extends keyof TuneParams>(key: K, value: TuneParams[K]) {
@@ -308,6 +322,16 @@ export class FluidSim {
     this.blit(this.displayMat, null);
   }
 
+  private applyGround() {
+    const g = new THREE.Color(this.night ? WATER : PAPER).convertLinearToSRGB();
+    this.displayMat.uniforms.uGround.value.set(g.r, g.g, g.b);
+    this.displayMat.uniforms.uGlow.value = this.night ? 1 : 0;
+  }
+
+  private absorb(color: THREE.Color, strength: number) {
+    return inkAbsorption(color, strength, this.night);
+  }
+
   private prog(frag: string, uniforms: Record<string, THREE.IUniform>) {
     return new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: frag, uniforms, depthTest: false, depthWrite: false });
   }
@@ -360,9 +384,9 @@ export class FluidSim {
     this.renderer.render(this.scene, this.camera);
   }
 
-  private copyInto(src: THREE.Texture, dst: THREE.WebGLRenderTarget) {
+  private copyInto(src: THREE.Texture, dst: THREE.WebGLRenderTarget, scale = 1) {
     this.clearMat.uniforms.uTexture.value = src;
-    this.clearMat.uniforms.uValue.value = 1;
+    this.clearMat.uniforms.uValue.value = scale;
     this.blit(this.clearMat, dst);
   }
 
@@ -425,7 +449,7 @@ export class FluidSim {
   }
 
   private dropInk(x: number, y: number, color: THREE.Color, strength: number) {
-    this.splatDye(x, y, inkAbsorption(color, strength * 0.22), 1.0);
+    this.splatDye(x, y, this.absorb(color, strength * 0.22), 1.0);
     const angle = Math.random() * Math.PI * 2;
     const speed = 60 + Math.random() * 80;
     this.splatVelocity(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 1.2);
@@ -433,7 +457,7 @@ export class FluidSim {
 
   private ringTick(pt: ActivePointer) {
     const ink = pt.ringPhase % 2 === 0;
-    this.dropDisc(pt.x, pt.y, ink ? inkAbsorption(this.currentInkColor(true), RING_INK) : CLEAR_WATER);
+    this.dropDisc(pt.x, pt.y, ink ? this.absorb(this.currentInkColor(true), RING_INK) : CLEAR_WATER);
     pt.ringPhase++;
   }
 
@@ -544,7 +568,7 @@ export class FluidSim {
       if (pt.down && this.tool === 'brush') {
         const speed = Math.min(Math.hypot(sx, sy) * 26, 1);
         if (speed > 0.04) {
-          this.splatDye(pt.x, pt.y, inkAbsorption(pt.color, speed * this.params.flow), 1.5);
+          this.splatDye(pt.x, pt.y, this.absorb(pt.color, speed * this.params.flow), 1.5);
         }
       }
     }

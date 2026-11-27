@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { DEFAULT_PARAMS, PALETTES, type InkMode, type TuneParams, type Tool } from './engine/config';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DEFAULT_PARAMS, PALETTES, inksFor, type InkMode, type TuneParams, type Tool } from './engine/config';
 import { useFluidSim } from './useFluidSim';
 import { useHotkeys } from './hotkeys';
 import { COMPACT_QUERY, useMediaQuery } from './useMediaQuery';
@@ -7,6 +7,7 @@ import { useFullscreen } from './fullscreen';
 import { downloadBlob, stampedName } from './files';
 import { shareFile } from './share';
 import { firstTime } from './storage';
+import { useTheme } from './theme';
 import DockWide from './components/DockWide';
 import DockCompact from './components/DockCompact';
 import CaptureButtons from './components/CaptureButtons';
@@ -25,6 +26,7 @@ export default function App() {
   const stageRef = useRef<HTMLDivElement>(null);
   const compact = useMediaQuery(COMPACT_QUERY);
   const fullscreen = useFullscreen();
+  const theme = useTheme();
   const [paletteIdx, setPaletteIdx] = useState(0);
   const [inkMode, setInkMode] = useState<InkMode>('cycle');
   const [tool, setTool] = useState<Tool>('brush');
@@ -38,13 +40,16 @@ export default function App() {
   const [recordSecs, setRecordSecs] = useState(0);
   const [uiHidden, setUiHidden] = useState(false);
   const toastId = useRef(0);
-  const palette = PALETTES[paletteIdx];
+  const palette = useMemo(() => {
+    const p = PALETTES[paletteIdx];
+    return { ...p, colors: inksFor(p, theme.night) };
+  }, [paletteIdx, theme.night]);
 
   const flash = useCallback((text: string) => setToast({ id: ++toastId.current, text }), []);
 
   const { simRef, webglError, hintGone, recordingSupported, recording, canUndo } = useFluidSim(
     stageRef,
-    { tool, inkMode, autoFlow, palette },
+    { tool, inkMode, autoFlow, palette, night: theme.night },
     {
       onRecorded: (blob, ext) => {
         if (!blob) {
@@ -147,6 +152,7 @@ export default function App() {
     save: saveImage,
     undo: () => simRef.current?.undo(),
     toggleUi,
+    toggleNight: theme.toggle,
   });
 
   const choosePalette = (i: number) => {
@@ -222,7 +228,7 @@ export default function App() {
           )}
 
           {showUi && compact && panel === 'inks' && (
-            <InkTray paletteIdx={paletteIdx} inkMode={inkMode} onPalette={choosePalette} onInk={setInkMode} onClose={() => setPanel('none')} />
+            <InkTray paletteIdx={paletteIdx} palette={palette} inkMode={inkMode} onPalette={choosePalette} onInk={setInkMode} onClose={() => setPanel('none')} />
           )}
 
           {showUi && compact && (
@@ -250,6 +256,7 @@ export default function App() {
               inkMode={inkMode}
               tool={tool}
               autoFlow={autoFlow}
+              night={theme.night}
               tuneOpen={panel === 'tune'}
               recording={recording}
               canRecord={recordingSupported}
@@ -258,6 +265,7 @@ export default function App() {
               onInk={setInkMode}
               onTool={setTool}
               onAuto={() => setAutoFlow(v => !v)}
+              onNight={theme.toggle}
               onTune={() => togglePanel('tune')}
               onWash={() => simRef.current?.wash()}
               onUndo={() => simRef.current?.undo()}
@@ -270,9 +278,11 @@ export default function App() {
           <MenuSheet
             open={sheet === 'menu'}
             autoFlow={autoFlow}
+            theme={theme.choice}
             fullscreen={fullscreen}
             onClose={() => setSheet('none')}
             onToggleAuto={() => setAutoFlow(v => !v)}
+            onTheme={theme.choose}
             onTune={() => { setSheet('none'); setPanel('tune'); }}
             onWash={() => { setSheet('none'); simRef.current?.wash(); }}
             onToggleFullscreen={() => { setSheet('none'); fullscreen.toggle(); }}
