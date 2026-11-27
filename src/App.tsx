@@ -85,6 +85,15 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [hintGone, flash]);
 
+  useEffect(() => {
+    if (!hintGone || theme.night) return;
+    // Waits out the rotate tip so the two toasts don't replace each other.
+    const timer = setTimeout(() => {
+      if (firstTime('tip-night')) flash(compact ? 'New: night water — open the menu and pick Night' : 'New: night water — press N or click Night');
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [hintGone, theme.night, compact, flash]);
+
   const saveImage = async () => {
     const sim = simRef.current;
     if (!sim) return;
