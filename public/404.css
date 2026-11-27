@@ -5,3 +5,9 @@ body{display:grid;place-items:center;background:#efeae0;color:#1a1a1f;font-famil
 h1{margin:0;font-size:44px;font-weight:700;letter-spacing:.3em;text-indent:.3em}
 p{margin:18px 0 28px;font-size:15px;letter-spacing:.06em;color:rgba(26,26,31,.72)}
 a{display:inline-block;padding:11px 26px;border-radius:999px;background:#1a1a1f;color:#efeae0;text-decoration:none;font-size:12px;letter-spacing:.2em}
+:root{color-scheme:light dark}
+@media (prefers-color-scheme:dark){
+  body{background:#0a0b0f;color:#ebe5d9}
+  p{color:rgba(235,229,217,.72)}
+  a{background:#ebe5d9;color:#121318}
+}
