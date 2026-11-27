@@ -66,6 +66,7 @@ const SHAPES = {
       <circle cx="12" cy="7.75" r=".9" fill="currentColor" stroke="none" />
     </>
   ),
+  moon: <path d="M19.5 14.6A7.8 7.8 0 1 1 9.4 4.5a6.2 6.2 0 0 0 10.1 10.1z" />,
   close: <path d="m6.5 6.5 11 11m0-11-11 11" />,
   chevron: <path d="m9.5 6 6 6-6 6" />,
   camera: (

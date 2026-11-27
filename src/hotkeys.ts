@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-export type HotkeyAction = 'drop' | 'wash' | 'save' | 'undo' | 'toggleUi';
+export type HotkeyAction = 'drop' | 'wash' | 'save' | 'undo' | 'toggleUi' | 'toggleNight';
 
 export type KeyTarget = 'page' | 'control' | 'text';
 
@@ -15,6 +15,7 @@ export function resolveHotkey(e: KeyInput, target: KeyTarget): HotkeyAction | nu
     case 'KeyX': return 'wash';
     case 'KeyS': return 'save';
     case 'KeyH': return 'toggleUi';
+    case 'KeyN': return 'toggleNight';
     default: return null;
   }
 }
